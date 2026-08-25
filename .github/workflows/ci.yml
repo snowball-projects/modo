@@ -12,5 +12,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -e '.[test]'
-      - run: python -m pytest
+      - run: python -m pip install uv==0.12.6
+      - run: uv sync --extra test --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked python -m pytest
+      - run: uv run --locked python -m build

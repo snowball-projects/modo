@@ -5,6 +5,8 @@ from math import atan2, cos, degrees, hypot, isfinite, radians, sin
 from geographiclib.geodesic import Geodesic
 from scipy.optimize import minimize
 
+from .road import RoadResult, nearest_vertices, optimize_coordinates, optimize_vertices
+
 __version__ = "0.1.0"
 _GEOD = Geodesic.WGS84
 
@@ -85,5 +87,5 @@ def minimax_center(coordinates):
     return float(latitude), float(longitude)
 
 
-__all__ = ["geographic_median", "minimax_center"]
-
+__all__ = ["RoadResult", "geographic_median", "minimax_center", "nearest_vertices",
+           "optimize_coordinates", "optimize_vertices"]

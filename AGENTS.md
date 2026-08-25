@@ -1,5 +1,7 @@
 - Never use em dashes, always use hyphens, i.e. regular dashes (-) instead.
 - Always choose the most minimal and least lines of code approach, avoid complexity at all costs.
+- Development setup and checks are documented in `README.md`.
+- Public-benefit principles: https://adelevski.github.io/principles/
 
 ## Maintaining this file
 
