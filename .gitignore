@@ -3,4 +3,9 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
-local*
+.ruff_cache/
+build/
+dist/
+local-*.bundle
+local-*.geojson
+local-*.graphml

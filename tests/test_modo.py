@@ -1,7 +1,7 @@
-import modo
 import pytest
 from geographiclib.geodesic import Geodesic
 
+import modo
 from modo import geographic_median, minimax_center
 
 
@@ -16,11 +16,11 @@ def test_rejects_invalid_input():
 
 
 def test_returns_one_point():
-    assert geographic_median([(41, -87)]) == (41.0, -87.0)
+    assert geographic_median([(10, 20)]) == (10.0, 20.0)
 
 
 def test_returns_two_point_geodesic_midpoint():
-    points = [(41.8781, -87.6298), (29.7604, -95.3698)]
+    points = [(10.0, 20.0), (12.0, 24.0)]
     result = geographic_median(points)
     assert abs(distance(points[0], result) - distance(result, points[1])) < 0.001
 
@@ -32,8 +32,7 @@ def test_finds_known_median():
 
 
 def test_is_independent_of_input_order():
-    points = [(47.6062, -122.3321), (34.0522, -118.2437),
-              (41.8781, -87.6298), (40.7128, -74.0060)]
+    points = [(10, 10), (12, 14), (14, 11), (13, 8)]
     assert distance(geographic_median(points), geographic_median(points[::-1])) < 1
 
 
@@ -59,8 +58,8 @@ def test_minimax_center_is_public():
 
 
 def test_minimax_center_returns_one_point_and_two_point_midpoint():
-    assert minimax_center([(41, -87)]) == (41.0, -87.0)
-    points = [(41.8781, -87.6298), (29.7604, -95.3698)]
+    assert minimax_center([(10, 20)]) == (10.0, 20.0)
+    points = [(10.0, 20.0), (12.0, 24.0)]
     result = minimax_center(points)
     assert abs(distance(points[0], result) - distance(result, points[1])) < 0.001
 
@@ -73,8 +72,7 @@ def test_minimax_center_minimizes_the_farthest_distance():
 
 
 def test_minimax_center_is_order_independent_and_ignores_duplicates():
-    points = [(47.6062, -122.3321), (34.0522, -118.2437),
-              (41.8781, -87.6298), (40.7128, -74.0060)]
+    points = [(10, 10), (12, 14), (14, 11), (13, 8)]
     assert distance(minimax_center(points), minimax_center(points[::-1])) < 1
     assert distance(minimax_center(points), minimax_center(points + points)) < 1
 
