@@ -1,7 +1,7 @@
 # Multi Origin Distance Optimizer
 
 `modo` is a headless Python library that optimizes geographic and static-road
-destinations for equally weighted origins.
+destinations for multiple origins.
 
 ```python
 from modo import geographic_median, minimax_center
@@ -26,11 +26,10 @@ optimization and can converge to a non-global solution for such inputs.
 ## Static-road reference optimizer
 
 `optimize_coordinates` snaps `(latitude, longitude)` origins to a weighted
-NetworkX road graph, exactly evaluates all mutually reachable vertices, and
-returns a representative coordinate plus the near-optimal vertex region. It
-supports `total` and `maximum` travel-time objectives. Graph nodes need `x`
-longitude and `y` latitude attributes. Edges use `travel_time` seconds by
-default.
+NetworkX road graph and exactly evaluates all mutually reachable vertices. Its
+`total` mode minimizes combined travel time, while its `maximum` mode minimizes
+the longest individual trip. Graph nodes need `x` longitude and `y` latitude
+attributes. Edges use `travel_time` seconds by default.
 
 ```python
 from modo import optimize_coordinates
@@ -44,12 +43,12 @@ snapped to graph vertex IDs. For the `total` objective, tolerance is
 per-traveler average slack, so 60 seconds permits
 `60 * len(origin_coordinates)` additional total seconds.
 
-Street addresses are intentionally a product-layer input. That layer validates
-and geocodes each address to a coordinate before calling MODO, and can reverse
-geocode the result for display.
+`result.region` contains every vertex within the tolerance. `result.vertex` and
+`result.coordinate` provide one exact optimum when a single location is useful.
 
-MODO does not download road data or call routing services. Callers provide the
-weighted graph, so the reference optimizer remains deterministic and testable.
+The current API receives the weighted graph as its first argument. It does not
+download road data or call routing services. The [mathematical model](docs/model.md)
+defines the objectives and region semantics.
 
 ## Development
 
