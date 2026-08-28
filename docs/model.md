@@ -98,6 +98,9 @@ road corridor, several disconnected components, or a single vertex. MODO also
 selects one exact optimum as a representative when a single coordinate is
 useful, but that point is not the only meaningful result.
 
+The region is a set of road vertices. Any polygon drawn around it is a derived
+presentation and does not replace the underlying result.
+
 Geographic centers and pairwise midpoints can be useful search seeds or visual
 references. They are not safe boundaries for a road optimum or its region.
 

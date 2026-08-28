@@ -48,7 +48,8 @@ per-traveler average slack, so 60 seconds permits
 
 The current API receives the weighted graph as its first argument. It does not
 download road data or call routing services. The [mathematical model](docs/model.md)
-defines the objectives and region semantics.
+defines the objectives and region semantics. The [architecture](docs/architecture.md)
+defines the boundary between MODO and a future Dashboard.
 
 ## Development
 

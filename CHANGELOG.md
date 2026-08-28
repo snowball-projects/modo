@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `minimax_center` for the WGS84 geodesic minimax center.
 - Exact static-road optimization from coordinates or vertices for total and
   maximum travel time.
+- The architecture boundary between MODO and a future Dashboard.
 
 ### Changed
 
