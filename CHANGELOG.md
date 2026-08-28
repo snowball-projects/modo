@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exact static-road optimization from coordinates or vertices for total and
   maximum travel time.
 
+### Changed
+
+- Relicensed MODO from MPL-2.0 to Apache-2.0 and credited its public metadata
+  to snowball.
+
 ## [0.1.0] - 2026-08-13
 
 ### Added

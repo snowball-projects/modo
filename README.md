@@ -65,3 +65,7 @@ uv run --locked python -m build
 
 The standard checks use only synthetic fixtures and do not require external
 services or local geographic data.
+
+## License
+
+MODO is a snowball project licensed under the [Apache License 2.0](LICENSE).
