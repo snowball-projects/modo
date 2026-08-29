@@ -1,7 +1,8 @@
 - Never use em dashes, always use hyphens, i.e. regular dashes (-) instead.
 - Always choose the most minimal and least lines of code approach, avoid complexity at all costs.
 - Development setup and checks are documented in `README.md`.
-- Public-benefit principles: https://adelevski.github.io/principles/
+- Public-benefit principles: https://snowball-projects.github.io/principles/
+- Attribution and contribution terms are in `NOTICE` and `CONTRIBUTING.md`.
 
 ## Maintaining this file
 

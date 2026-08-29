@@ -103,3 +103,6 @@ services or local geographic data.
 ## License
 
 MODO is a snowball project licensed under the [Apache License 2.0](LICENSE).
+See [NOTICE](NOTICE) for attribution, [CONTRIBUTING.md](CONTRIBUTING.md) before
+submitting work, and snowball's [licensing and identity
+policy](https://snowball-projects.github.io/licensing/).

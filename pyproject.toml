@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Optimize multi-origin geographic and static-road destinations."
 authors = [{name = "snowball"}]
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = ["geographiclib>=2,<3", "networkx>=3.4,<4", "scipy>=1.12,<2"]
