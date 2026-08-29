@@ -72,12 +72,14 @@ Saved compact graphs support integer and string vertex IDs. The compact and
 NetworkX analyses use the same result, tolerance, and tie-breaking semantics.
 
 `optimize_vertices` is the lower-level equivalent for origins that are already
-snapped to graph vertex IDs. For the `total` objective, tolerance is
-per-traveler average slack, so 60 seconds permits
-`60 * len(origin_coordinates)` additional total seconds.
+snapped to graph vertex IDs. Tolerance is direct slack on the selected
+objective, so 60 seconds permits one additional minute of combined time in
+`total` mode or one additional minute on the longest trip in `maximum` mode.
 
 `result.region` contains every vertex within the tolerance. `result.vertex` and
 `result.coordinate` provide one exact optimum when a single location is useful.
+`result.region_excess_seconds` maps every region vertex to the number of seconds
+its objective exceeds the optimum.
 
 The current API receives the weighted graph as its first argument. It does not
 download road data or call routing services. The [mathematical model](docs/model.md)

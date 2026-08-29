@@ -25,14 +25,17 @@ def graph():
     return graph
 
 
-def test_total_objective_and_average_tolerance(graph):
-    result = optimize_vertices(graph, ["a", "b"], tolerance_seconds=1)
+def test_total_objective_and_direct_tolerance(graph):
+    result = optimize_vertices(graph, ["a", "b"], tolerance_seconds=0.75)
     assert result.vertex == "x"
     assert result.coordinate == (1.0, 2.0)
     assert result.origin_vertices == ("a", "b")
     assert result.objective_seconds == 10
     assert result.travel_times_seconds == (1, 9)
-    assert result.region == {"x", "y"}
+    assert result.region == {"x"}
+    assert dict(result.region_excess_seconds) == {"x": 0}
+    assert optimize_vertices(graph, ["a", "b"], tolerance_seconds=1).region == {
+        "x", "y"}
 
 
 def test_maximum_objective_and_tolerance(graph):
@@ -41,6 +44,7 @@ def test_maximum_objective_and_tolerance(graph):
     assert result.objective_seconds == 6
     assert result.travel_times_seconds == (5, 6)
     assert result.region == {"x", "y"}
+    assert dict(result.region_excess_seconds) == {"x": 3, "y": 0}
 
 
 @pytest.mark.parametrize("kwargs", [

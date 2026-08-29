@@ -1,8 +1,9 @@
 """Exact static-road reference optimization."""
 
-from collections.abc import Hashable
+from collections.abc import Hashable, Mapping
 from dataclasses import dataclass
 from math import cos, isfinite, radians, sin
+from types import MappingProxyType
 
 import networkx as nx
 from scipy.spatial import cKDTree
@@ -16,6 +17,7 @@ class RoadResult:
     region: frozenset[Hashable]
     objective_seconds: float
     travel_times_seconds: tuple[float, ...]
+    region_excess_seconds: Mapping[Hashable, float]
 
 
 @dataclass(frozen=True)
@@ -55,11 +57,7 @@ class StaticRoadAnalysis:
         return self.travel_times(nearest_vertices(self._graph, [coordinate])[0])
 
     def optimize(self, objective="total", tolerance_seconds=0):
-        """Optimize without repeating the shortest-path searches.
-
-        Total-objective tolerance is per-origin average slack. Maximum-objective
-        tolerance is direct slack on the longest trip.
-        """
+        """Optimize without repeating the shortest-path searches."""
         if objective not in {"total", "maximum"}:
             raise ValueError("objective must be 'total' or 'maximum'")
         try:
@@ -73,13 +71,15 @@ class StaticRoadAnalysis:
         scores = {vertex: score(values[vertex] for values in self._times)
                   for vertex in self._vertices}
         vertex = min(self._vertices, key=lambda item: (scores[item], str(item)))
-        slack = tolerance_seconds * (len(self.origin_vertices)
-                                     if objective == "total" else 1)
         region = frozenset(item for item in self._vertices
-                           if scores[item] <= scores[vertex] + slack)
+                           if scores[item] <= scores[vertex] + tolerance_seconds)
+        excess = MappingProxyType({
+            item: float(scores[item] - scores[vertex]) for item in region
+        })
         travel_times = self.travel_times(vertex)
         return RoadResult(vertex, travel_times.coordinate, self.origin_vertices, region,
-                          float(scores[vertex]), travel_times.travel_times_seconds)
+                          float(scores[vertex]), travel_times.travel_times_seconds,
+                          excess)
 
 
 def _coordinate(graph, vertex):

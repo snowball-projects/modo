@@ -43,16 +43,16 @@ v_T^*=\arg\min_{v\in R}T(v),
 T^*=T(v_T^*).
 $$
 
-For a tolerance of $\Delta$ seconds per traveler, the near-optimal region is
+For a tolerance of $\Delta$ seconds of combined travel, the near-optimal region
+is
 
 $$
 S_{T,\Delta}
-=\{v\in R\mid A(v)\le A^*+\Delta\}
-=\{v\in R\mid T(v)\le T^*+n\Delta\}.
+=\{v\in R\mid T(v)\le T^*+\Delta\}.
 $$
 
-A 60-second tolerance means the average trip is within one minute of the best
-average, allowing $60n$ seconds of additional group total time.
+A 60-second tolerance allows one additional minute of combined group travel
+time.
 
 ## Maximum-time mode
 
@@ -100,6 +100,16 @@ useful, but that point is not the only meaningful result.
 
 The region is a set of road vertices. Any polygon drawn around it is a derived
 presentation and does not replace the underlying result.
+
+For either objective $F\in\{T,M\}$, the excess of a region vertex is
+
+$$
+e_F(v)=F(v)-F^*.
+$$
+
+It ranges from zero at an exact optimum to $\Delta$ at the region boundary and
+can be used to present stronger emphasis nearer the optimum without changing
+the region.
 
 Geographic centers and pairwise midpoints can be useful search seeds or visual
 references. They are not safe boundaries for a road optimum or its region.

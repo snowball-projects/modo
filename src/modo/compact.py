@@ -2,6 +2,7 @@
 
 import json
 from math import cos, isfinite, radians, sin
+from types import MappingProxyType
 
 import networkx as nx
 import numpy as np
@@ -189,15 +190,17 @@ class CompactStaticRoadAnalysis:
         best_score = float(np.min(scores[self._reachable]))
         candidates = np.flatnonzero(self._reachable & (scores == best_score))
         best_index = min(candidates, key=lambda index: str(self._road._vertices[index]))
-        slack = tolerance_seconds * (len(self.origin_vertices)
-                                     if objective == "total" else 1)
         region_indices = np.flatnonzero(
-            self._reachable & (scores <= best_score + slack))
+            self._reachable & (scores <= best_score + tolerance_seconds))
         region = frozenset(self._road._vertices[index] for index in region_indices)
+        excess = MappingProxyType({
+            self._road._vertices[index]: float(scores[index] - best_score)
+            for index in region_indices
+        })
         travel_times = self.travel_times(self._road._vertices[best_index])
         return RoadResult(travel_times.vertex, travel_times.coordinate,
                           self.origin_vertices, region, best_score,
-                          travel_times.travel_times_seconds)
+                          travel_times.travel_times_seconds, excess)
 
 
 def _points(coordinates):

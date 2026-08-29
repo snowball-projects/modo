@@ -21,7 +21,7 @@ def graph():
 
 
 @pytest.mark.parametrize(("objective", "tolerance"), [
-    ("total", 0), ("total", 1), ("maximum", 0), ("maximum", 3),
+    ("total", 0), ("total", 0.75), ("maximum", 0), ("maximum", 3),
 ])
 def test_compact_results_match_networkx(graph, objective, tolerance):
     expected = analyze_vertices(graph, ["a", "b"]).optimize(objective, tolerance)
