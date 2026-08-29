@@ -7,17 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-29
+
+### Fixed
+
+- Kept compact and NetworkX results equivalent at floating-point tolerance
+  boundaries and for tied mixed-type vertex IDs.
+- Restored compact analysis compatibility with SciPy 1.12 and aligned input
+  validation across both road backends.
+
 ### Added
 
 - `minimax_center` for the WGS84 geodesic minimax center.
 - Exact static-road optimization from coordinates or vertices for total and
   maximum travel time.
-- The architecture boundary between MODO and a future Dashboard.
+- An exact memory-bounded compact analysis mode that does not retain the full
+  origin-by-vertex distance matrix.
+- The architecture boundary between modo and fairway.
 
 ### Changed
 
 - Relicensed MODO from MPL-2.0 to Apache-2.0 and credited its public metadata
   to snowball.
+- Changed total-time tolerance from per-traveler average slack to direct slack
+  on the combined-time objective.
+- Vectorized compact-graph snapping and objective selection, and removed the
+  objective scan's origin-by-vertex matrix copy.
 
 ## [0.1.0] - 2026-08-13
 

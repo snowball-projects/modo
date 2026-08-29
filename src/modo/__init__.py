@@ -24,7 +24,7 @@ _GEOD = Geodesic.WGS84
 def _points(coordinates):
     try:
         points = [(float(lat), float(lon)) for lat, lon in coordinates]
-    except (TypeError, ValueError) as error:
+    except (OverflowError, TypeError, ValueError) as error:
         raise ValueError("coordinates must contain (latitude, longitude) pairs") from error
     if not points:
         raise ValueError("coordinates must not be empty")

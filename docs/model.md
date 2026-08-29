@@ -101,6 +101,10 @@ useful, but that point is not the only meaningful result.
 The region is a set of road vertices. Any polygon drawn around it is a derived
 presentation and does not replace the underlying result.
 
+When several vertices share the exact optimum, numbers, strings, and bytes use
+type-aware textual tie-breaking. Other hashable IDs fall back to their type and
+graph insertion order. Both road backends apply the same rule.
+
 For either objective $F\in\{T,M\}$, the excess of a region vertex is
 
 $$

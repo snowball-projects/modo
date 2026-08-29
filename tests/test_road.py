@@ -60,7 +60,8 @@ def test_rejects_invalid_options(graph, kwargs):
 
 def test_rejects_disconnected_origins():
     graph = nx.DiGraph()
-    graph.add_nodes_from(["a", "b"])
+    graph.add_node("a", x=0, y=0)
+    graph.add_node("b", x=1, y=0)
     with pytest.raises(nx.NetworkXNoPath):
         optimize_vertices(graph, ["a", "b"])
 
@@ -70,6 +71,15 @@ def test_requires_coordinates_on_the_result_vertex():
     graph.add_node("a")
     with pytest.raises(ValueError, match="numeric x and y"):
         optimize_vertices(graph, ["a"])
+
+
+def test_coordinate_overflow_is_a_value_error():
+    graph = nx.DiGraph()
+    graph.add_node("a", x=10**400, y=0)
+    with pytest.raises(ValueError, match="numeric x and y"):
+        optimize_vertices(graph, ["a"])
+    with pytest.raises(ValueError, match="numeric x and y"):
+        nearest_vertices(graph, [(0, 0)])
 
 
 def test_optimizes_from_coordinates(graph):
@@ -119,10 +129,24 @@ def test_nearest_vertices_handles_the_dateline():
     assert nearest_vertices(graph, [(0, -179.9)]) == ("east",)
 
 
-@pytest.mark.parametrize("coordinates", [[], [(91, 0)], [(0, 181)], [(1, 2, 3)]])
+@pytest.mark.parametrize("coordinates", [
+    [], [(91, 0)], [(0, 181)], [(1, 2, 3)], [(10**400, 0)],
+])
 def test_coordinate_optimizer_rejects_invalid_input(graph, coordinates):
     with pytest.raises(ValueError):
         optimize_coordinates(graph, coordinates)
+
+
+@pytest.mark.parametrize("weight", [-1, float("nan"), float("inf"), "slow", 10**400])
+def test_networkx_rejects_invalid_weights(graph, weight):
+    graph["a"]["x"]["travel_time"] = weight
+    with pytest.raises(ValueError, match="nonnegative"):
+        analyze_vertices(graph, ["a"])
+
+
+def test_networkx_rejects_non_attribute_weight(graph):
+    with pytest.raises(TypeError, match="attribute name"):
+        analyze_vertices(graph, ["a"], lambda start, end, data: 1)
 
 
 def test_road_api_is_public():

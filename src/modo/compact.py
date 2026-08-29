@@ -1,7 +1,7 @@
 """Compact exact static-road optimization."""
 
 import json
-from math import cos, isfinite, radians, sin
+from math import isfinite
 from types import MappingProxyType
 
 import networkx as nx
@@ -10,7 +10,14 @@ from scipy.sparse import csr_array
 from scipy.sparse.csgraph import dijkstra
 from scipy.spatial import cKDTree
 
-from .road import RoadResult, RoadTravelTimes
+from .road import (
+    RoadResult,
+    RoadTravelTimes,
+    _coordinate,
+    _edge_weight,
+    _tolerance,
+    _vertex_key,
+)
 
 _FORMAT_VERSION = 1
 
@@ -36,25 +43,16 @@ class CompactRoadGraph:
             raise ValueError("road graph must not be empty")
         indices = {vertex: index for index, vertex in enumerate(vertices)}
         coordinates = np.empty((len(vertices), 2), dtype=np.float64)
-        try:
-            for index, vertex in enumerate(vertices):
-                coordinates[index] = float(graph.nodes[vertex]["y"]), float(
-                    graph.nodes[vertex]["x"])
-        except (KeyError, TypeError, ValueError) as error:
-            raise ValueError("road vertices must have numeric x and y coordinates") from error
+        for index, vertex in enumerate(vertices):
+            coordinates[index] = _coordinate(graph, vertex)
 
         edge_count = graph.number_of_edges() * (1 if graph.is_directed() else 2)
-        rows = np.empty(edge_count, dtype=np.int64)
-        columns = np.empty(edge_count, dtype=np.int64)
+        rows = np.empty(edge_count, dtype=np.int32)
+        columns = np.empty(edge_count, dtype=np.int32)
         weights = np.empty(edge_count, dtype=np.float64)
         position = 0
         for start, end, data in graph.edges(data=True):
-            try:
-                value = 1.0 if weight is None else float(data.get(weight, 1))
-            except (TypeError, ValueError) as error:
-                raise ValueError("road edge weights must be nonnegative numbers") from error
-            if not isfinite(value) or value < 0:
-                raise ValueError("road edge weights must be nonnegative numbers")
+            value = _edge_weight(data, weight)
             rows[position], columns[position], weights[position] = (
                 indices[start], indices[end], value)
             position += 1
@@ -82,13 +80,25 @@ class CompactRoadGraph:
                 raise ValueError("unsupported compact road graph format")
             vertices = _decode_vertices(archive["vertices"])
             coordinates = np.array(archive["coordinates"], dtype=np.float64)
-            matrix = csr_array((np.array(archive["data"], dtype=np.float64),
-                                np.array(archive["indices"]),
-                                np.array(archive["indptr"])),
-                               shape=(len(vertices), len(vertices)))
+            data = np.array(archive["data"], dtype=np.float64)
+            indices = _csr_indices(archive["indices"], "indices")
+            indptr = _csr_indices(archive["indptr"], "indptr")
             directed = bool(archive["directed"])
-        if coordinates.shape != (len(vertices), 2):
+        size = len(vertices)
+        if not size:
+            raise ValueError("invalid compact road graph vertices")
+        if (coordinates.shape != (size, 2)
+                or np.any(~np.isfinite(coordinates))
+                or np.any(np.abs(coordinates[:, 0]) > 90)
+                or np.any(np.abs(coordinates[:, 1]) > 180)):
             raise ValueError("invalid compact road graph coordinates")
+        if (data.ndim != 1 or len(indices) != len(data)
+                or len(indptr) != size + 1 or indptr[0] != 0
+                or indptr[-1] != len(data)
+                or np.any(indptr[1:] < indptr[:-1])
+                or np.any(indices >= size)):
+            raise ValueError("invalid compact road graph structure")
+        matrix = csr_array((data, indices, indptr), shape=(size, size))
         if np.any(~np.isfinite(matrix.data)) or np.any(matrix.data < 0):
             raise ValueError("invalid compact road graph weights")
         return cls(vertices, coordinates, matrix, directed)
@@ -123,35 +133,44 @@ class CompactRoadGraph:
         """Snap coordinates to the nearest compact-graph vertices."""
         points = _points(coordinates)
         if self._tree is None:
-            self._tree = cKDTree([_vector(*point) for point in self._coordinates])
+            self._tree = cKDTree(_vectors(self._coordinates))
         return tuple(self._vertices[index]
-                     for index in self._tree.query([_vector(*point) for point in points])[1])
+                     for index in self._tree.query(_vectors(points))[1])
 
-    def analyze_vertices(self, origins):
-        """Calculate one reusable distance matrix for vertex origins."""
-        return CompactStaticRoadAnalysis(self, origins)
+    def analyze_vertices(self, origins, retain_distances=True):
+        """Calculate reusable exact results for vertex origins."""
+        return CompactStaticRoadAnalysis(self, origins, retain_distances)
 
-    def analyze_coordinates(self, origins):
-        """Snap coordinate origins and calculate one reusable distance matrix."""
-        return self.analyze_vertices(self.nearest_vertices(origins))
+    def analyze_coordinates(self, origins, retain_distances=True):
+        """Snap coordinate origins and calculate reusable exact results."""
+        return self.analyze_vertices(self.nearest_vertices(origins), retain_distances)
 
 
 class CompactStaticRoadAnalysis:
-    """Exact reusable analysis backed by one dense distance matrix."""
+    """Exact reusable compact-graph analysis."""
 
-    def __init__(self, road, origins):
+    def __init__(self, road, origins, retain_distances=True):
         origins = tuple(origins)
         if not origins:
             raise ValueError("origins must not be empty")
+        if not isinstance(retain_distances, bool):
+            raise TypeError("retain_distances must be a bool")
         try:
             origin_indices = [road._indices[origin] for origin in origins]
         except KeyError as error:
             raise nx.NodeNotFound(f"Node {error.args[0]} not found in graph") from error
         self._road = road
+        self._origin_indices = np.array(origin_indices, dtype=np.int32)
         self.origin_vertices = origins
-        self._distances = np.atleast_2d(dijkstra(
-            road._matrix, directed=road._directed, indices=origin_indices))
-        self._reachable = np.all(np.isfinite(self._distances), axis=0)
+        self._distances = None
+        self._scores = None
+        if retain_distances:
+            self._distances = np.atleast_2d(dijkstra(
+                road._matrix, directed=road._directed, indices=origin_indices))
+            self._reachable = np.all(np.isfinite(self._distances), axis=0)
+        else:
+            self._scores, self._reachable = _stream_scores(
+                road._matrix, road._directed, origin_indices)
         if not np.any(self._reachable):
             raise nx.NetworkXNoPath("origins have no mutually reachable vertex")
 
@@ -163,11 +182,17 @@ class CompactStaticRoadAnalysis:
             raise nx.NetworkXNoPath("vertex is not reachable from every origin") from error
         if not self._reachable[index]:
             raise nx.NetworkXNoPath("vertex is not reachable from every origin")
+        if self._distances is None:
+            matrix = self._road._matrix.T if self._road._directed else self._road._matrix
+            values = dijkstra(matrix, directed=self._road._directed, indices=index)[
+                self._origin_indices]
+        else:
+            values = self._distances[:, index]
         return RoadTravelTimes(
             vertex,
             self._road.coordinate(vertex),
             self.origin_vertices,
-            tuple(map(float, self._distances[:, index])),
+            tuple(map(float, values)),
         )
 
     def travel_times_at_coordinate(self, coordinate):
@@ -178,26 +203,31 @@ class CompactStaticRoadAnalysis:
         """Optimize without recalculating the sparse shortest paths."""
         if objective not in {"total", "maximum"}:
             raise ValueError("objective must be 'total' or 'maximum'")
-        try:
-            tolerance_seconds = float(tolerance_seconds)
-        except (TypeError, ValueError) as error:
-            raise ValueError("tolerance_seconds must be a nonnegative number") from error
-        if not isfinite(tolerance_seconds) or tolerance_seconds < 0:
-            raise ValueError("tolerance_seconds must be a nonnegative number")
+        tolerance_seconds = _tolerance(tolerance_seconds)
 
-        scores = (np.sum(self._distances, axis=0) if objective == "total"
-                  else np.max(self._distances, axis=0))
-        best_score = float(np.min(scores[self._reachable]))
-        candidates = np.flatnonzero(self._reachable & (scores == best_score))
-        best_index = min(candidates, key=lambda index: str(self._road._vertices[index]))
-        region_indices = np.flatnonzero(
-            self._reachable & (scores <= best_score + tolerance_seconds))
+        reachable = np.flatnonzero(self._reachable)
+        if self._distances is None:
+            scores = self._scores[objective]
+        else:
+            with np.errstate(invalid="ignore", over="ignore"):
+                scores = (_total_scores(self._distances) if objective == "total"
+                          else np.max(self._distances, axis=0))
+        if len(reachable) != len(scores):
+            scores = scores[reachable]
+        if np.any(~np.isfinite(scores)):
+            raise ValueError("road objective scores must be finite")
+        best_score = float(np.min(scores))
+        tied_positions = np.flatnonzero(scores == best_score)
+        best_position = min(tied_positions, key=lambda position: _vertex_key(
+            self._road._vertices[reachable[position]], reachable[position]))
+        region_positions = np.flatnonzero(scores - best_score <= tolerance_seconds)
+        region_indices = reachable[region_positions]
         region = frozenset(self._road._vertices[index] for index in region_indices)
         excess = MappingProxyType({
-            self._road._vertices[index]: float(scores[index] - best_score)
-            for index in region_indices
+            self._road._vertices[index]: float(scores[position] - best_score)
+            for position, index in zip(region_positions, region_indices)
         })
-        travel_times = self.travel_times(self._road._vertices[best_index])
+        travel_times = self.travel_times(self._road._vertices[reachable[best_position]])
         return RoadResult(travel_times.vertex, travel_times.coordinate,
                           self.origin_vertices, region, best_score,
                           travel_times.travel_times_seconds, excess)
@@ -207,7 +237,7 @@ def _points(coordinates):
     try:
         points = tuple((float(latitude), float(longitude))
                        for latitude, longitude in coordinates)
-    except (TypeError, ValueError) as error:
+    except (OverflowError, TypeError, ValueError) as error:
         raise ValueError("coordinates must contain (latitude, longitude) pairs") from error
     if not points:
         raise ValueError("coordinates must not be empty")
@@ -218,10 +248,56 @@ def _points(coordinates):
     return points
 
 
-def _vector(latitude, longitude):
-    latitude, longitude = radians(latitude), radians(longitude)
-    return (cos(latitude) * cos(longitude), cos(latitude) * sin(longitude),
-            sin(latitude))
+def _vectors(coordinates):
+    values = np.radians(np.asarray(coordinates, dtype=np.float64))
+    latitude, longitude = values[:, 0], values[:, 1]
+    latitude_cosine = np.cos(latitude)
+    return np.column_stack((latitude_cosine * np.cos(longitude),
+                            latitude_cosine * np.sin(longitude),
+                            np.sin(latitude)))
+
+
+def _total_scores(distances):
+    scores = np.zeros(distances.shape[1], dtype=np.float64)
+    correction = np.zeros(distances.shape[1], dtype=np.float64)
+    for values in distances:
+        adjusted = values - correction
+        updated = scores + adjusted
+        correction = (updated - scores) - adjusted
+        scores = updated
+    return scores
+
+
+def _stream_scores(matrix, directed, origin_indices):
+    size = matrix.shape[0]
+    total = np.zeros(size, dtype=np.float64)
+    correction = np.zeros(size, dtype=np.float64)
+    maximum = np.zeros(size, dtype=np.float64)
+    reachable = np.ones(size, dtype=np.bool_)
+    for origin in origin_indices:
+        values = dijkstra(matrix, directed=directed, indices=int(origin))
+        finite = np.isfinite(values)
+        reachable &= finite
+        values[~finite] = 0
+        with np.errstate(invalid="ignore", over="ignore"):
+            adjusted = values - correction
+            updated = total + adjusted
+            correction = (updated - total) - adjusted
+        total = updated
+        np.maximum(maximum, values, out=maximum)
+    return {"total": total, "maximum": maximum}, reachable
+
+
+def _csr_indices(value, name):
+    values = np.asarray(value)
+    if (values.ndim != 1 or not np.issubdtype(values.dtype, np.integer)
+            or np.any(values < 0)
+            or np.any(values > np.iinfo(np.int32).max)):
+        raise ValueError(f"invalid compact road graph {name}")
+    converted = values.astype(np.int32)
+    if not np.array_equal(values, converted):
+        raise ValueError(f"invalid compact road graph {name}")
+    return converted
 
 
 def _encode_vertices(vertices):

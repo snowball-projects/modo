@@ -11,6 +11,11 @@ The static-road optimizer accepts either a caller's weighted NetworkX graph or
 a compact graph compiled from it. Both implement the same exact contract. MODO
 does not bundle or maintain a national road network.
 
+The compact graph can retain every origin's travel-time field or aggregate one
+field at a time in memory-bounded mode. Both return the same exact objectives
+and regions. Memory-bounded selected-point evaluation performs a reverse-graph
+shortest-path search on demand.
+
 The authoritative result is the qualifying set of road vertices described by
 the [mathematical model](model.md). A representative coordinate is a
 convenience, and any polygon is a presentation derived outside MODO.
@@ -33,16 +38,16 @@ arrive-by traffic costs. The current NetworkX API implements the static contract
 through a reusable `StaticRoadAnalysis`. Time-dependent routing remains a
 future capability.
 
-## Fairway boundary
+## fairway boundary
 
-Fairway is a future Dashboard with two parts:
+fairway is the dashboard that presents modo's results, with two parts:
 
 - The browser collects inputs and visualizes results.
 - The backend geocodes inputs, builds and validates immutable versioned road
   snapshots, operates the routing runtime, invokes MODO, and manages deployment
   and privacy.
 
-Fairway decides when changed inputs require a new evaluation and how to display
+fairway decides when changed inputs require a new evaluation and how to display
 the results. MODO defines and performs the calculations.
 
 The road data belongs to the backend runtime, not the browser, MODO package, or

@@ -68,6 +68,21 @@ total = analysis.optimize("total", tolerance_seconds=60)
 region_coordinates = roads.coordinates(total.region)
 ```
 
+Large graphs can keep exact objective and region semantics without retaining an
+origin-by-vertex distance matrix:
+
+```python
+analysis = roads.analyze_coordinates(origin_coordinates,
+                                     retain_distances=False)
+```
+
+This memory-bounded mode streams one shortest-path field at a time and retains
+only total, maximum, and reachability arrays. It performs one reverse-graph
+shortest-path search when an optimum or caller-selected point needs individual
+travel times. Those values can differ from retained-field results at machine
+precision because floating-point edge costs are added in reverse order. The
+default retains all fields for faster repeated point queries.
+
 Saved compact graphs support integer and string vertex IDs. The compact and
 NetworkX analyses use the same result, tolerance, and tie-breaking semantics.
 
@@ -84,7 +99,7 @@ its objective exceeds the optimum.
 The current API receives the weighted graph as its first argument. It does not
 download road data or call routing services. The [mathematical model](docs/model.md)
 defines the objectives and region semantics. The [architecture](docs/architecture.md)
-defines the boundary between MODO and the future Fairway Dashboard.
+defines the boundary between modo and fairway.
 
 ## Development
 
