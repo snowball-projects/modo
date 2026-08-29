@@ -18,43 +18,87 @@ class RoadResult:
     travel_times_seconds: tuple[float, ...]
 
 
-def optimize_vertices(graph, origins, objective="total", tolerance_seconds=0,
-                      weight="travel_time"):
-    """Optimize mutually reachable vertices in a static weighted road graph.
+@dataclass(frozen=True)
+class RoadTravelTimes:
+    vertex: Hashable
+    coordinate: tuple[float, float]
+    origin_vertices: tuple[Hashable, ...]
+    travel_times_seconds: tuple[float, ...]
 
-    Total-objective tolerance is per-origin average slack. Maximum-objective
-    tolerance is direct slack on the longest trip.
-    """
-    origins = tuple(origins)
-    if not origins:
-        raise ValueError("origins must not be empty")
-    if objective not in {"total", "maximum"}:
-        raise ValueError("objective must be 'total' or 'maximum'")
-    try:
-        tolerance_seconds = float(tolerance_seconds)
-    except (TypeError, ValueError) as error:
-        raise ValueError("tolerance_seconds must be a nonnegative number") from error
-    if not isfinite(tolerance_seconds) or tolerance_seconds < 0:
-        raise ValueError("tolerance_seconds must be a nonnegative number")
 
-    times = [nx.single_source_dijkstra_path_length(graph, origin, weight=weight)
-             for origin in origins]
-    vertices = set.intersection(*(set(values) for values in times))
-    if not vertices:
-        raise nx.NetworkXNoPath("origins have no mutually reachable vertex")
-    score = sum if objective == "total" else max
-    scores = {vertex: score(values[vertex] for values in times) for vertex in vertices}
-    vertex = min(vertices, key=lambda item: (scores[item], str(item)))
-    slack = tolerance_seconds * (len(origins) if objective == "total" else 1)
-    region = frozenset(item for item in vertices
-                       if scores[item] <= scores[vertex] + slack)
+class StaticRoadAnalysis:
+    """Reusable shortest-path analysis for one graph and origin set."""
+
+    def __init__(self, graph, origins, weight="travel_time"):
+        origins = tuple(origins)
+        if not origins:
+            raise ValueError("origins must not be empty")
+        self._graph = graph
+        self.origin_vertices = origins
+        self._times = tuple(nx.single_source_dijkstra_path_length(
+            graph, origin, weight=weight) for origin in origins)
+        self._vertices = frozenset.intersection(
+            *(frozenset(values) for values in self._times))
+        if not self._vertices:
+            raise nx.NetworkXNoPath("origins have no mutually reachable vertex")
+
+    def travel_times(self, vertex):
+        """Return per-origin travel times to a mutually reachable vertex."""
+        if vertex not in self._vertices:
+            raise nx.NetworkXNoPath("vertex is not reachable from every origin")
+        return RoadTravelTimes(vertex, _coordinate(self._graph, vertex),
+                               self.origin_vertices,
+                               tuple(float(values[vertex]) for values in self._times))
+
+    def travel_times_at_coordinate(self, coordinate):
+        """Snap one coordinate and return its per-origin travel times."""
+        return self.travel_times(nearest_vertices(self._graph, [coordinate])[0])
+
+    def optimize(self, objective="total", tolerance_seconds=0):
+        """Optimize without repeating the shortest-path searches.
+
+        Total-objective tolerance is per-origin average slack. Maximum-objective
+        tolerance is direct slack on the longest trip.
+        """
+        if objective not in {"total", "maximum"}:
+            raise ValueError("objective must be 'total' or 'maximum'")
+        try:
+            tolerance_seconds = float(tolerance_seconds)
+        except (TypeError, ValueError) as error:
+            raise ValueError("tolerance_seconds must be a nonnegative number") from error
+        if not isfinite(tolerance_seconds) or tolerance_seconds < 0:
+            raise ValueError("tolerance_seconds must be a nonnegative number")
+
+        score = sum if objective == "total" else max
+        scores = {vertex: score(values[vertex] for values in self._times)
+                  for vertex in self._vertices}
+        vertex = min(self._vertices, key=lambda item: (scores[item], str(item)))
+        slack = tolerance_seconds * (len(self.origin_vertices)
+                                     if objective == "total" else 1)
+        region = frozenset(item for item in self._vertices
+                           if scores[item] <= scores[vertex] + slack)
+        travel_times = self.travel_times(vertex)
+        return RoadResult(vertex, travel_times.coordinate, self.origin_vertices, region,
+                          float(scores[vertex]), travel_times.travel_times_seconds)
+
+
+def _coordinate(graph, vertex):
     data = graph.nodes[vertex]
     try:
-        coordinate = float(data["y"]), float(data["x"])
+        return float(data["y"]), float(data["x"])
     except (KeyError, TypeError, ValueError) as error:
         raise ValueError("road vertices must have numeric x and y coordinates") from error
-    return RoadResult(vertex, coordinate, origins, region, float(scores[vertex]),
-                      tuple(float(values[vertex]) for values in times))
+
+
+def analyze_vertices(graph, origins, weight="travel_time"):
+    """Prepare reusable static-road calculations for vertex origins."""
+    return StaticRoadAnalysis(graph, origins, weight)
+
+
+def optimize_vertices(graph, origins, objective="total", tolerance_seconds=0,
+                      weight="travel_time"):
+    """Optimize mutually reachable vertices in a static weighted road graph."""
+    return analyze_vertices(graph, origins, weight).optimize(objective, tolerance_seconds)
 
 
 def nearest_vertices(graph, coordinates):
@@ -87,5 +131,9 @@ def nearest_vertices(graph, coordinates):
 def optimize_coordinates(graph, origins, objective="total", tolerance_seconds=0,
                          weight="travel_time"):
     """Snap origin coordinates to vertices and optimize the static road graph."""
-    return optimize_vertices(graph, nearest_vertices(graph, origins), objective,
-                             tolerance_seconds, weight)
+    return analyze_coordinates(graph, origins, weight).optimize(objective, tolerance_seconds)
+
+
+def analyze_coordinates(graph, origins, weight="travel_time"):
+    """Snap coordinate origins and prepare reusable static-road calculations."""
+    return analyze_vertices(graph, nearest_vertices(graph, origins), weight)

@@ -38,6 +38,21 @@ result = optimize_coordinates(graph, origin_coordinates, "maximum",
                               tolerance_seconds=60)
 ```
 
+Use one analysis to reuse the same shortest-path searches across objectives and
+selected destinations:
+
+```python
+from modo import analyze_coordinates
+
+analysis = analyze_coordinates(graph, origin_coordinates)
+total = analysis.optimize("total", tolerance_seconds=60)
+maximum = analysis.optimize("maximum", tolerance_seconds=60)
+selected = analysis.travel_times_at_coordinate(selected_coordinate)
+```
+
+`total.region` and `maximum.region` contain the complete qualifying vertex
+sets. `selected.travel_times_seconds` contains one travel time per origin.
+
 `optimize_vertices` is the lower-level equivalent for origins that are already
 snapped to graph vertex IDs. For the `total` objective, tolerance is
 per-traveler average slack, so 60 seconds permits
@@ -49,7 +64,7 @@ per-traveler average slack, so 60 seconds permits
 The current API receives the weighted graph as its first argument. It does not
 download road data or call routing services. The [mathematical model](docs/model.md)
 defines the objectives and region semantics. The [architecture](docs/architecture.md)
-defines the boundary between MODO and a future Dashboard.
+defines the boundary between MODO and the future Fairway Dashboard.
 
 ## Development
 

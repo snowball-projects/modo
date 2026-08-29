@@ -104,6 +104,19 @@ presentation and does not replace the underlying result.
 Geographic centers and pairwise midpoints can be useful search seeds or visual
 references. They are not safe boundaries for a road optimum or its region.
 
+## Selected-point evaluation
+
+For any caller-selected coordinate $q$, let $v_q$ be its corresponding road
+vertex. MODO's selected-point evaluation is the per-origin travel-time vector
+
+$$
+C(q)=\left(d_G(o_1,v_q),\ldots,d_G(o_n,v_q)\right).
+$$
+
+This vector lets a caller show every traveler's trip and derive the total,
+average, and maximum travel times for any selected point. Coordinate
+snapping and display remain outside the mathematical result.
+
 ## Static and time-dependent costs
 
 The current implementation uses constant edge costs:

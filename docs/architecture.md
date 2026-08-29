@@ -15,14 +15,35 @@ The authoritative result is the qualifying set of road vertices described by
 the [mathematical model](model.md). A representative coordinate is a
 convenience, and any polygon is a presentation derived outside MODO.
 
-## Dashboard boundary
+## Engine contract
 
-A future Dashboard has two parts:
+For one set of origins and one routing context, MODO's engine contract is to:
+
+- compute the total-time and maximum-time results from the same per-origin
+  travel-time fields
+- return the complete road-vertex region for each objective and tolerance
+- evaluate any caller-selected coordinate, after road-network snapping, and
+  return its travel time from every origin
+- recompute deterministically when origins, tolerance, road snapshot, cost
+  profile, or time context changes
+
+MODO does not retain application or session state between evaluations. The
+routing context uses static costs today, but must allow future depart-at and
+arrive-by traffic costs. The current NetworkX API implements the static contract
+through a reusable `StaticRoadAnalysis`. Time-dependent routing remains a
+future capability.
+
+## Fairway boundary
+
+Fairway is a future Dashboard with two parts:
 
 - The browser collects inputs and visualizes results.
 - The backend geocodes inputs, builds and validates immutable versioned road
   snapshots, operates the routing runtime, invokes MODO, and manages deployment
   and privacy.
+
+Fairway decides when changed inputs require a new evaluation and how to display
+the results. MODO defines and performs the calculations.
 
 The road data belongs to the backend runtime, not the browser, MODO package, or
 source repository. The initial application should use one backend process and

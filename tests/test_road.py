@@ -2,7 +2,13 @@ import networkx as nx
 import pytest
 
 import modo
-from modo import nearest_vertices, optimize_coordinates, optimize_vertices
+from modo import (
+    analyze_coordinates,
+    analyze_vertices,
+    nearest_vertices,
+    optimize_coordinates,
+    optimize_vertices,
+)
 
 
 @pytest.fixture
@@ -68,6 +74,40 @@ def test_optimizes_from_coordinates(graph):
     assert result.vertex == "x"
 
 
+def test_analysis_reuses_searches_for_objectives_and_tolerances(graph, monkeypatch):
+    dijkstra = nx.single_source_dijkstra_path_length
+    calls = []
+
+    def counted(*args, **kwargs):
+        calls.append(args[1])
+        return dijkstra(*args, **kwargs)
+
+    monkeypatch.setattr(nx, "single_source_dijkstra_path_length", counted)
+    analysis = analyze_vertices(graph, ["a", "b"])
+    assert analysis.optimize().vertex == "x"
+    assert analysis.optimize("maximum").vertex == "y"
+    assert analysis.optimize(tolerance_seconds=1).region == {"x", "y"}
+    assert analysis.travel_times("y").travel_times_seconds == (5, 6)
+    assert analysis.travel_times_at_coordinate((1, 2.1)).vertex == "x"
+    assert calls == ["a", "b"]
+
+
+def test_analysis_returns_travel_times_at_vertices_and_coordinates(graph):
+    analysis = analyze_coordinates(graph, [(0, 0.1), (0, 9.9)])
+    result = analysis.travel_times("y")
+    assert result.vertex == "y"
+    assert result.coordinate == (1.0, 3.0)
+    assert result.origin_vertices == ("a", "b")
+    assert result.travel_times_seconds == (5, 6)
+    assert analysis.travel_times_at_coordinate((1, 2.1)).vertex == "x"
+    assert analysis.travel_times_at_coordinate((1, 2.1)).travel_times_seconds == (1, 9)
+
+
+def test_analysis_rejects_a_vertex_not_reachable_from_every_origin(graph):
+    with pytest.raises(nx.NetworkXNoPath, match="every origin"):
+        analyze_vertices(graph, ["a", "b"]).travel_times("a")
+
+
 def test_nearest_vertices_handles_the_dateline():
     graph = nx.Graph()
     graph.add_node("east", x=179, y=0)
@@ -82,5 +122,6 @@ def test_coordinate_optimizer_rejects_invalid_input(graph, coordinates):
 
 
 def test_road_api_is_public():
-    assert {"RoadResult", "nearest_vertices", "optimize_coordinates",
-            "optimize_vertices"} <= set(modo.__all__)
+    assert {"RoadResult", "RoadTravelTimes", "StaticRoadAnalysis",
+            "analyze_coordinates", "analyze_vertices", "nearest_vertices",
+            "optimize_coordinates", "optimize_vertices"} <= set(modo.__all__)
