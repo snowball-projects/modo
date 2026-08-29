@@ -7,9 +7,9 @@ MODO is a headless mathematical engine. It owns:
 - the routing contract required to evaluate travel times
 - result provenance
 
-The current static-road optimizer accepts a weighted NetworkX graph from its
-caller. It is the exact reference implementation of that contract. MODO does
-not bundle or maintain a national road network.
+The static-road optimizer accepts either a caller's weighted NetworkX graph or
+a compact graph compiled from it. Both implement the same exact contract. MODO
+does not bundle or maintain a national road network.
 
 The authoritative result is the qualifying set of road vertices described by
 the [mathematical model](model.md). A representative coordinate is a

@@ -53,6 +53,24 @@ selected = analysis.travel_times_at_coordinate(selected_coordinate)
 `total.region` and `maximum.region` contain the complete qualifying vertex
 sets. `selected.travel_times_seconds` contains one travel time per origin.
 
+For a smaller static runtime, compile the caller's graph into a versioned,
+compressed asset and load it without rebuilding a NetworkX graph:
+
+```python
+from modo import CompactRoadGraph
+
+roads = CompactRoadGraph.from_networkx(graph)
+roads.save("roads.npz")
+
+roads = CompactRoadGraph.load("roads.npz")
+analysis = roads.analyze_coordinates(origin_coordinates)
+total = analysis.optimize("total", tolerance_seconds=60)
+region_coordinates = roads.coordinates(total.region)
+```
+
+Saved compact graphs support integer and string vertex IDs. The compact and
+NetworkX analyses use the same result, tolerance, and tie-breaking semantics.
+
 `optimize_vertices` is the lower-level equivalent for origins that are already
 snapped to graph vertex IDs. For the `total` objective, tolerance is
 per-traveler average slack, so 60 seconds permits

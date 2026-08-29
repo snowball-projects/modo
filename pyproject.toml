@@ -16,7 +16,7 @@ dependencies = ["geographiclib>=2,<3", "networkx>=3.4,<4", "scipy>=1.12,<2"]
 test = ["build>=1.2,<2", "pytest>=8,<9", "ruff>=0.12,<1"]
 
 [project.urls]
-Repository = "https://github.com/adelevski/modo"
+Repository = "https://github.com/snowball-projects/modo"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
