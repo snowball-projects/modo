@@ -3,6 +3,7 @@
 - Development setup and checks are documented in `README.md`.
 - Public-benefit principles: https://snowball-projects.github.io/principles/
 - Attribution and contribution terms are in `NOTICE` and `CONTRIBUTING.md`.
+- Keep the README's AI-agent disclosure aligned with snowball's canonical policy.
 
 ## Maintaining this file
 

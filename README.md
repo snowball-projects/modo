@@ -3,6 +3,8 @@
 `modo` is a headless Python library that optimizes geographic and static-road
 destinations for multiple origins.
 
+[Founder-directed. Built entirely by AI agents.](https://snowball-projects.github.io/licensing/#how-snowball-is-built)
+
 ```python
 from modo import geographic_median, minimax_center
 
