@@ -26,9 +26,28 @@ REGION_TOLERANCE_SECONDS = 60
 MAX_REQUEST_BYTES = 32_768
 MAX_ORIGINS = 32
 MAX_REGION_POINTS = 5_000
+MAX_ROUTE_POINTS = 100_000
 MAX_SNAP_DISTANCE_KILOMETERS = 5
 LOGGER = logging.getLogger(__name__)
 _graph = None
+_SECURITY_HEADERS = (
+    ("X-Content-Type-Options", "nosniff"),
+    ("Referrer-Policy", "strict-origin-when-cross-origin"),
+    ("Permissions-Policy", "camera=(), geolocation=(), microphone=()"),
+    ("Strict-Transport-Security", "max-age=31536000"),
+    ("X-Frame-Options", "DENY"),
+)
+_CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "base-uri 'none'; "
+    "connect-src 'self' https://photon.komoot.io; "
+    "form-action 'none'; "
+    "frame-ancestors 'none'; "
+    "img-src 'self' data: https://tile.openstreetmap.org; "
+    "object-src 'none'; "
+    "script-src 'self' https://unpkg.com; "
+    "style-src 'self' 'unsafe-inline'"
+)
 
 
 class _BadRequest(Exception):
@@ -41,6 +60,10 @@ class _UnprocessableRequest(Exception):
 
 class _PayloadTooLarge(Exception):
     """A request body that exceeds the hosted-service byte limit."""
+
+
+class _UnsupportedMediaType(Exception):
+    """A request body that is not JSON."""
 
 
 def _road():
@@ -56,21 +79,25 @@ def _road():
     return _graph
 
 
-def _json(start_response, status, value):
+def _json(start_response, status, value, headers=()):
     body = json.dumps(value, separators=(",", ":")).encode()
     start_response(
         status,
         [
-            ("Content-Type", "application/json"),
+            ("Content-Type", "application/json; charset=utf-8"),
             ("Content-Length", str(len(body))),
             ("Cache-Control", "no-store"),
-            ("X-Content-Type-Options", "nosniff"),
+            *headers,
+            *_SECURITY_HEADERS,
         ],
     )
     return [body]
 
 
 def _body(environ):
+    content_type = environ.get("CONTENT_TYPE", "").partition(";")[0].strip().lower()
+    if content_type != "application/json":
+        raise _UnsupportedMediaType("content type must be application/json")
     declared_length = environ.get("CONTENT_LENGTH")
     if declared_length in (None, ""):
         body = environ["wsgi.input"].read(MAX_REQUEST_BYTES + 1)
@@ -102,6 +129,12 @@ def _coordinates(value):
         raise _BadRequest("origins must be a list")
     if any(not isinstance(point, (list, tuple)) or len(point) != 2 for point in value):
         raise _BadRequest("origins must contain latitude, longitude pairs")
+    if any(
+        isinstance(coordinate, bool) or not isinstance(coordinate, (int, float))
+        for point in value
+        for coordinate in point
+    ):
+        raise _BadRequest("origin coordinates must be JSON numbers")
     try:
         points = tuple((float(latitude), float(longitude))
                        for latitude, longitude in value)
@@ -180,6 +213,10 @@ def _evaluate(environ, start_response):
             "The one-minute region is too large for this hosted interface."
         )
     routes = analysis.routes(result.vertex)
+    if sum(len(route.coordinates) for route in routes) > MAX_ROUTE_POINTS:
+        raise _UnprocessableRequest(
+            "The routes are too large for this hosted interface."
+        )
     return _json(
         start_response,
         "200 OK",
@@ -203,11 +240,19 @@ def _evaluate(environ, start_response):
     )
 
 
-def _static(start_response, path):
+def _static_file(path):
     name = "index.html" if path == "/" else path.removeprefix("/")
-    file = STATIC / name
-    if not file.is_file() or not file.resolve().is_relative_to(STATIC.resolve()):
-        return _json(start_response, "404 Not Found", {"error": "not found"})
+    try:
+        file = (STATIC / name).resolve()
+        valid = file.is_relative_to(STATIC.resolve()) and file.is_file()
+    except (OSError, RuntimeError, ValueError):
+        return None
+    if not valid:
+        return None
+    return file
+
+
+def _static(start_response, file):
     body = file.read_bytes()
     content_type = mimetypes.guess_type(file)[0] or "application/octet-stream"
     start_response(
@@ -216,22 +261,34 @@ def _static(start_response, path):
             ("Content-Type", content_type),
             ("Content-Length", str(len(body))),
             ("Cache-Control", "no-cache"),
-            ("X-Content-Type-Options", "nosniff"),
-            ("Referrer-Policy", "strict-origin-when-cross-origin"),
+            ("Content-Security-Policy", _CONTENT_SECURITY_POLICY),
+            *_SECURITY_HEADERS,
         ],
     )
     return [body]
 
 
-def application(environ, start_response):
-    """Serve the modo interface and same-origin evaluation API."""
+def _method_not_allowed(start_response, allowed):
+    return _json(
+        start_response,
+        "405 Method Not Allowed",
+        {"error": "method not allowed"},
+        (("Allow", ", ".join(allowed)),),
+    )
+
+
+def _application(environ, start_response):
     path = environ.get("PATH_INFO", "/")
     method = environ.get("REQUEST_METHOD", "GET")
     try:
-        if path == "/health" and method == "GET":
+        if path == "/health":
+            if method not in {"GET", "HEAD"}:
+                return _method_not_allowed(start_response, ("GET", "HEAD"))
             _road()
             return _json(start_response, "200 OK", {"status": "ok"})
-        if path == "/api/config" and method == "GET":
+        if path == "/api/config":
+            if method not in {"GET", "HEAD"}:
+                return _method_not_allowed(start_response, ("GET", "HEAD"))
             return _json(
                 start_response,
                 "200 OK",
@@ -244,23 +301,36 @@ def application(environ, start_response):
                     "tolerance_seconds": REGION_TOLERANCE_SECONDS,
                 },
             )
-        if path == "/api/evaluations" and method == "POST":
+        if path == "/api/evaluations":
+            if method != "POST":
+                return _method_not_allowed(start_response, ("POST",))
             return _evaluate(environ, start_response)
-        if method == "GET":
-            return _static(start_response, path)
-        return _json(
-            start_response, "405 Method Not Allowed", {"error": "method not allowed"}
-        )
+        file = _static_file(path)
+        if file is None:
+            return _json(start_response, "404 Not Found", {"error": "not found"})
+        if method not in {"GET", "HEAD"}:
+            return _method_not_allowed(start_response, ("GET", "HEAD"))
+        return _static(start_response, file)
     except _PayloadTooLarge as error:
         return _json(start_response, "413 Payload Too Large", {"error": str(error)})
+    except _UnsupportedMediaType as error:
+        return _json(
+            start_response, "415 Unsupported Media Type", {"error": str(error)}
+        )
     except _UnprocessableRequest as error:
         return _json(start_response, "422 Unprocessable Entity", {"error": str(error)})
     except _BadRequest as error:
         return _json(start_response, "400 Bad Request", {"error": str(error)})
     except Exception:
-        LOGGER.exception("Unhandled modo request failure: %s %s", method, path)
+        LOGGER.exception("Unhandled modo request failure: %r %r", method, path)
         return _json(
             start_response,
             "500 Internal Server Error",
             {"error": "modo could not calculate this request"},
         )
+
+
+def application(environ, start_response):
+    """Serve the modo interface and same-origin evaluation API."""
+    body = _application(environ, start_response)
+    return [] if environ.get("REQUEST_METHOD", "GET") == "HEAD" else body

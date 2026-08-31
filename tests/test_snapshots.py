@@ -5,6 +5,20 @@ import pytest
 from modo.snapshots import DEFAULT_CATALOG, load_catalog
 
 
+def snapshot(**changes):
+    value = {
+        "id": "test",
+        "file": "roads.npz",
+        "url": "https://example.test/roads.npz",
+        "sha256": "a" * 64,
+        "cost_profile": "test",
+        "core_bounds": [0, 0, 1, 1],
+        "graph_bounds": [-1, -1, 2, 2],
+    }
+    value.update(changes)
+    return value
+
+
 def test_loads_published_catalog():
     catalog = load_catalog(DEFAULT_CATALOG)
     assert len(catalog) == 1
@@ -41,5 +55,32 @@ def test_rejects_invalid_catalog(tmp_path, change):
     value.update(change)
     path = tmp_path / "snapshots.json"
     path.write_text(json.dumps(value))
+    with pytest.raises(ValueError, match="invalid road snapshot catalog"):
+        load_catalog(path)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"url": "file:///tmp/roads.npz"},
+        {"url": "http://example.test/roads.npz"},
+        {"url": "https:///roads.npz"},
+        {"url": "https://user:secret@example.test/roads.npz"},
+        {"url": "https://example.test/roads\n.npz"},
+        {"url": "https://example.test:invalid/roads.npz"},
+        {"url": 42},
+        {"file": ""},
+        {"id": "test\x00snapshot"},
+        {"sha256": "g" * 64},
+        {"core_bounds": [float("nan"), 0, 1, 1]},
+        {"core_bounds": [10**400, 0, 1, 1]},
+        {"graph_bounds": [-91, -1, 2, 2]},
+    ],
+)
+def test_rejects_unsafe_snapshot_metadata(tmp_path, changes):
+    path = tmp_path / "snapshots.json"
+    path.write_text(
+        json.dumps({"schema_version": 1, "snapshots": [snapshot(**changes)]})
+    )
     with pytest.raises(ValueError, match="invalid road snapshot catalog"):
         load_catalog(path)

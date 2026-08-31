@@ -1,9 +1,9 @@
 const PALETTE = [
   "#176B87",
-  "#D1495B",
+  "#C84457",
   "#6C4AB6",
   "#2D7D46",
-  "#C66A12",
+  "#B85A0C",
   "#A63D8F",
   "#007C78",
   "#6E5C41",
@@ -48,7 +48,7 @@ new ResizeObserver(() => map.invalidateSize()).observe(document.querySelector("#
 function nextColor() {
   const index = state.nextColor++;
   if (index < PALETTE.length) return PALETTE[index];
-  return `hsl(${(198 + index * 137.508) % 360} 58% 38%)`;
+  return `hsl(${(198 + index * 137.508) % 360} 58% 30%)`;
 }
 
 function setStatus(message) {
@@ -80,6 +80,10 @@ function parseCoordinate(value) {
 
 function formatCoordinate(coordinate) {
   return `${coordinate[0].toFixed(5)}, ${coordinate[1].toFixed(5)}`;
+}
+
+function looksLikeCoordinateInput(value) {
+  return /^[+\-\d.,\s]+$/.test(value);
 }
 
 function featureLabel(feature) {
@@ -200,14 +204,14 @@ async function suggest(row) {
     addSuggestion(row, `Use ${formatCoordinate(coordinate)}`, coordinate);
     return;
   }
-  if (query.length < 3) return;
+  if (query.length < 3 || looksLikeCoordinateInput(query)) return;
   const controller = new AbortController();
   row.controller = controller;
   try {
     const scope = state.photonBbox ? `&bbox=${state.photonBbox}` : "&countrycode=US";
     const response = await fetch(
       `https://photon.komoot.io/api/?limit=5${scope}&q=${encodeURIComponent(query)}`,
-      { signal: controller.signal },
+      { signal: controller.signal, referrerPolicy: "no-referrer" },
     );
     if (!response.ok) throw new Error();
     const result = await response.json();
@@ -241,8 +245,8 @@ async function suggest(row) {
 function renumber() {
   state.rows.forEach((row, index) => {
     row.input.placeholder = `Origin ${index + 1}`;
-    row.input.ariaLabel = `Origin ${index + 1}`;
-    row.remove.ariaLabel = `Remove origin ${index + 1}`;
+    row.input.setAttribute("aria-label", `Origin ${index + 1}`);
+    row.remove.setAttribute("aria-label", `Remove origin ${index + 1}`);
     row.remove.disabled = state.rows.length <= 2;
     if (row.marker) row.marker.setIcon(originIcon(row));
   });
@@ -272,12 +276,15 @@ function addOrigin() {
   inputWrap.className = "origin-input-wrap";
   row.input = document.createElement("input");
   row.input.autocomplete = "off";
+  row.input.spellcheck = false;
   row.input.setAttribute("role", "combobox");
   row.input.setAttribute("aria-autocomplete", "list");
   row.input.setAttribute("aria-haspopup", "listbox");
   row.input.setAttribute("aria-expanded", "false");
   row.time = document.createElement("span");
   row.time.className = "origin-time";
+  row.time.id = `origin-time-${row.id}`;
+  row.input.setAttribute("aria-describedby", row.time.id);
   row.suggestions = document.createElement("ul");
   row.suggestions.className = "suggestions";
   row.suggestions.id = `origin-suggestions-${row.id}`;

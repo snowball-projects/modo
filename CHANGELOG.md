@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-31
+
+### Security
+
+- Restricted snapshot downloads to verified HTTPS metadata, bounded their
+  size and duration, and rejected unsafe redirects.
+- Added a content security policy, transport and browser security headers,
+  JSON-only evaluation requests, and bounded route responses.
+- Pinned CI actions, disabled persisted checkout credentials, and reproduced
+  deployments from the checked-in dependency lock.
+
+### Fixed
+
+- Added correct `HEAD` responses and `Allow` headers for unsupported methods.
+- Updated the test dependency with a disclosed vulnerability and improved
+  keyboard focus, color contrast, and result announcements.
+
 ## [0.3.0] - 2026-08-30
 
 ### Added

@@ -27,13 +27,14 @@ independent deployments set their own service policies.
 
 ## Current limits
 
-The interface accepts between two and 32 origins and at most 32 KiB of JSON.
-Coordinates must be inside the active snapshot's supported core and within 5
-km of one of its road vertices. The initial snapshot covers the Chicago area
-specified in `src/modo/snapshots.json`.
+The interface accepts between two and 32 origins and at most 32 KiB of an
+`application/json` request. Coordinates must be inside the active snapshot's
+supported core and within 5 km of one of its road vertices. The initial
+snapshot covers the Chicago area specified in `src/modo/snapshots.json`.
 
 The fixed one-minute region may contain at most 5,000 road vertices. modo
 rejects a larger result instead of truncating the mathematical region.
+Returned routes may contain at most 100,000 stored road vertices in total.
 
 ## Acceptable use
 

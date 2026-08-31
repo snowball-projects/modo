@@ -8,7 +8,15 @@ import pytest
 from modo import CompactRoadGraph, web
 
 
-def request(path="/", method="GET", payload=None, *, raw_body=None, content_length="auto"):
+def request(
+    path="/",
+    method="GET",
+    payload=None,
+    *,
+    raw_body=None,
+    content_length="auto",
+    content_type="application/json",
+):
     body = (
         raw_body
         if raw_body is not None
@@ -28,6 +36,8 @@ def request(path="/", method="GET", payload=None, *, raw_body=None, content_leng
         "REQUEST_METHOD": method,
         "wsgi.input": io.BytesIO(body),
     }
+    if content_type is not None:
+        environ["CONTENT_TYPE"] = content_type
     if content_length == "auto":
         environ["CONTENT_LENGTH"] = str(len(body))
     elif content_length is not None:
@@ -58,6 +68,10 @@ def test_serves_single_objective_interface():
     status, headers, body = request()
     assert status == "200 OK"
     assert headers["Cache-Control"] == "no-cache"
+    assert headers["X-Frame-Options"] == "DENY"
+    assert headers["Strict-Transport-Security"] == "max-age=31536000"
+    assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+    assert "https://photon.komoot.io" in headers["Content-Security-Policy"]
     assert b"modo" in body
     assert b"Best possible longest drive" in body
     assert b"within one minute" in body
@@ -65,9 +79,9 @@ def test_serves_single_objective_interface():
     assert b"Region tolerance" not in body
     assert b"Service policy" in body
     assert b"Founder-directed. Built entirely by AI agents." in body
-    assert b'href="/styles.css?v=0.3.0"' in body
+    assert b'href="/styles.css?v=0.3.1"' in body
     assert b'href="/leaflet.css?v=1.9.4"' in body
-    assert b'src="/app.js?v=0.3.0"' in body
+    assert b'src="/app.js?v=0.3.1"' in body
 
     status, headers, body = request("/app.js")
     assert status == "200 OK"
@@ -75,6 +89,7 @@ def test_serves_single_objective_interface():
     assert b'fetch("/api/evaluations"' in body
     assert b"result.routes.forEach" in body
     assert b"const PALETTE" in body
+    assert b"looksLikeCoordinateInput(query)" in body
     assert b"map.stop()" in body
     assert b"animate: false" in body
     assert b"clearTimeout(row.timer)" in body
@@ -137,7 +152,7 @@ def test_calculates_only_minimax_region_and_routes(monkeypatch):
         [[41.88, -87.7], [41.89, -87.76]],
     ]
     assert result["provenance"]["tolerance_seconds"] == 60
-    assert result["provenance"]["modo"] == "0.3.0"
+    assert result["provenance"]["modo"] == "0.3.1"
 
 
 def test_health_loads_the_snapshot(monkeypatch):
@@ -154,6 +169,8 @@ def test_health_loads_the_snapshot(monkeypatch):
         [[41.88, -87.8]],
         {"first": [41.88, -87.8]},
         ["41.88,-87.8", "41.88,-87.7"],
+        [[True, -87.8], [41.88, -87.7]],
+        [["41.88", -87.8], [41.88, -87.7]],
         [[91, 0], [41.88, -87.7]],
     ],
 )
@@ -219,6 +236,18 @@ def test_rejects_oversized_region(monkeypatch):
     assert b"one-minute region is too large" in body
 
 
+def test_rejects_oversized_routes(monkeypatch):
+    monkeypatch.setattr(web, "_graph", road_graph())
+    monkeypatch.setattr(web, "MAX_ROUTE_POINTS", 3)
+    status, _headers, body = request(
+        "/api/evaluations",
+        "POST",
+        {"origins": [[41.88, -87.8], [41.88, -87.7]]},
+    )
+    assert status == "422 Unprocessable Entity"
+    assert b"routes are too large" in body
+
+
 def test_request_body_limits_and_json_validation():
     status, _headers, _body = request(
         "/api/evaluations",
@@ -231,6 +260,12 @@ def test_request_body_limits_and_json_validation():
     assert request("/api/evaluations", "POST", raw_body=b'{"origins":\xff}')[0] == (
         "400 Bad Request"
     )
+    assert request(
+        "/api/evaluations", "POST", raw_body=b"{}", content_type="text/plain"
+    )[0] == "415 Unsupported Media Type"
+    assert request(
+        "/api/evaluations", "POST", raw_body=b"{}", content_type=None
+    )[0] == "415 Unsupported Media Type"
 
 
 def test_logs_unexpected_failures(monkeypatch, caplog):
@@ -252,4 +287,27 @@ def test_logs_unexpected_failures(monkeypatch, caplog):
 
 def test_unknown_and_unsupported_routes():
     assert request("/missing")[0] == "404 Not Found"
-    assert request("/api/config", "POST")[0] == "405 Method Not Allowed"
+    assert request("/missing", "POST")[0] == "404 Not Found"
+
+    status, headers, _body = request("/api/config", "POST")
+    assert status == "405 Method Not Allowed"
+    assert headers["Allow"] == "GET, HEAD"
+
+    status, headers, _body = request("/api/evaluations", "GET")
+    assert status == "405 Method Not Allowed"
+    assert headers["Allow"] == "POST"
+
+    status, headers, _body = request("/app.js", "POST")
+    assert status == "405 Method Not Allowed"
+    assert headers["Allow"] == "GET, HEAD"
+
+
+@pytest.mark.parametrize("path", ["/", "/app.js", "/api/config", "/health"])
+def test_head_matches_get_headers_without_a_body(monkeypatch, path):
+    monkeypatch.setattr(web, "_graph", road_graph())
+    get_status, get_headers, get_body = request(path)
+    head_status, head_headers, head_body = request(path, "HEAD")
+    assert head_status == get_status == "200 OK"
+    assert head_headers == get_headers
+    assert int(head_headers["Content-Length"]) == len(get_body)
+    assert head_body == b""

@@ -67,8 +67,8 @@ supports the Chicago area described in [the data notes](../data/README.md).
 
 `render.yaml` defines one self-contained free-plan service. A new deployment
 can use that blueprint if the owner's Render account permits another free web
-service. The application does not require a separate routing service or
-database.
+service. Its Python environment is reproduced from the checked-in `uv.lock`.
+The application does not require a separate routing service or database.
 
 ## fairway boundary
 
