@@ -21,8 +21,6 @@ const view = {
   addOrigin: document.querySelector("#add-origin"),
   origins: document.querySelector("#origins"),
   panel: document.querySelector(".panel"),
-  result: document.querySelector("#result"),
-  bestTime: document.querySelector("#best-time"),
   status: document.querySelector("#status"),
 };
 const map = L.map("map", {
@@ -120,7 +118,6 @@ function clearResult() {
   state.request?.abort();
   state.request = null;
   state.layers.splice(0).forEach((layer) => layer.remove());
-  view.result.hidden = true;
   state.rows.forEach((row) => {
     row.time.textContent = "";
   });
@@ -420,8 +417,6 @@ function drawResult(result, activeRows) {
     ...result.region.map((point) => point.coordinate),
     ...result.routes.flat(),
   ]);
-  view.bestTime.textContent = duration(result.objective_seconds);
-  view.result.hidden = false;
   if (bounds.isValid()) {
     map.stop();
     map.fitBounds(bounds.pad(0.12), fitOptions(14));

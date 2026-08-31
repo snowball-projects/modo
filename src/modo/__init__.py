@@ -18,7 +18,7 @@ from .road import (
     optimize_vertices,
 )
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 _GEOD = Geodesic.WGS84
 
 

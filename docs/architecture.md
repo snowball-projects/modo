@@ -58,6 +58,16 @@ in the [data notes](../data/README.md).
 `render.yaml` and `uv.lock` reproduce the hosted service. No database or
 separate routing service is required.
 
+## Geographic expansion
+
+Lower-48 coverage should use immutable regional snapshots, each with an inner
+supported core and outer routing halo. Build and benchmark each snapshot
+offline, then deploy only bundles within measured memory and latency limits.
+
+Requests must fit one active core. Reject cross-region inputs until prebuilt
+partition and boundary routing can preserve the exact-over-the-named-graph
+contract. Runtime road downloads or routing API calls are not interim coverage.
+
 ## fairway boundary
 
 fairway ranks a finite golf-course catalog; modo searches mutually reachable

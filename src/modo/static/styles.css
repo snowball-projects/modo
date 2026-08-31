@@ -51,7 +51,7 @@ header p { margin: .55rem 0 0; color: #587069; font-size: .9rem; line-height: 1.
   justify-content: space-between;
   margin-top: 1.35rem;
 }
-h1, .eyebrow {
+h1 {
   margin: 0;
   color: #687b75;
   font-size: .69rem;
@@ -151,16 +151,6 @@ h1, .eyebrow {
 .suggestions button:focus,
 .suggestions [role="option"][aria-selected="true"] { background: #edf3f0; }
 .suggestions button:focus-visible { outline-offset: -.1rem; }
-
-.result {
-  margin-top: 1rem;
-  padding: .9rem;
-  border: 1px solid #b7d7cf;
-  border-radius: .8rem;
-  background: #e5f4ef;
-}
-.result strong { display: block; margin-top: .18rem; color: #0c5548; font-size: 1.55rem; }
-.result p:last-child { margin: .45rem 0 0; color: #45665e; font-size: .76rem; line-height: 1.45; }
 
 #status { margin: 1rem .1rem 0; color: #3c6057; font-size: .78rem; line-height: 1.4; }
 .about { margin-top: 1rem; border-top: 1px solid #dbe3df; padding-top: .8rem; }

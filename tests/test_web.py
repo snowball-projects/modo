@@ -73,15 +73,17 @@ def test_serves_single_objective_interface():
     assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
     assert "https://photon.komoot.io" in headers["Content-Security-Policy"]
     assert b"modo" in body
-    assert b"Best possible longest drive" in body
-    assert b"within one minute" in body
+    assert b"Best possible longest drive" not in body
+    assert b'id="result"' not in body
+    assert b'id="best-time"' not in body
+    assert b"within 60 seconds" in body
     assert b"total driving time" not in body
     assert b"Region tolerance" not in body
     assert b"Service policy" in body
     assert b"Founder-directed. Built entirely by AI agents." in body
-    assert b'href="/styles.css?v=0.3.1"' in body
+    assert b'href="/styles.css?v=0.3.2"' in body
     assert b'href="/leaflet.css?v=1.9.4"' in body
-    assert b'src="/app.js?v=0.3.1"' in body
+    assert b'src="/app.js?v=0.3.2"' in body
 
     status, headers, body = request("/app.js")
     assert status == "200 OK"
@@ -99,10 +101,18 @@ def test_serves_single_objective_interface():
     assert b'event.key === "ArrowUp"' in body
     assert b'event.key === "Escape"' in body
     assert b"result.snapped_origins" in body
+    assert b"result.travel_times_seconds" in body
+    assert b'fillColor: "#00A98F"' in body
+    assert b"One-minute region ready." in body
+    assert b"bindPopup" not in body
+    assert b"view.bestTime" not in body
+    assert b"view.result" not in body
 
     status, _headers, body = request("/styles.css")
     assert status == "200 OK"
     assert b".origin-pin" in body
+    assert b".result" not in body
+    assert b".eyebrow" not in body
 
     status, headers, body = request("/leaflet.css")
     assert status == "200 OK"
@@ -152,7 +162,7 @@ def test_calculates_only_minimax_region_and_routes(monkeypatch):
         [[41.88, -87.7], [41.89, -87.76]],
     ]
     assert result["provenance"]["tolerance_seconds"] == 60
-    assert result["provenance"]["modo"] == "0.3.1"
+    assert result["provenance"]["modo"] == "0.3.2"
 
 
 def test_health_loads_the_snapshot(monkeypatch):
