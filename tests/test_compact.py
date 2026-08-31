@@ -110,6 +110,28 @@ def test_compact_coordinate_queries_match_networkx(graph):
     assert analysis.travel_times_at_coordinate((1, 2.1)).travel_times_seconds == (1, 9)
 
 
+@pytest.mark.parametrize("retain_distances", [True, False])
+def test_compact_routes_match_networkx(graph, retain_distances):
+    expected = analyze_vertices(graph, ["a", "b"]).routes("y")
+    actual = CompactRoadGraph.from_networkx(graph).analyze_vertices(
+        ["a", "b"], retain_distances=retain_distances).routes("y")
+    assert actual == expected
+
+
+def test_compact_routes_follow_directed_paths():
+    graph = nx.DiGraph()
+    for longitude, vertex in enumerate(["a", "b", "middle", "target"]):
+        graph.add_node(vertex, x=longitude, y=0)
+    graph.add_edge("a", "middle", travel_time=2)
+    graph.add_edge("b", "middle", travel_time=3)
+    graph.add_edge("middle", "target", travel_time=4)
+    analysis = CompactRoadGraph.from_networkx(graph).analyze_vertices(["a", "b"])
+    assert [route.vertices for route in analysis.routes("target")] == [
+        ("a", "middle", "target"),
+        ("b", "middle", "target"),
+    ]
+
+
 def test_compact_tie_breaks_by_vertex_string():
     graph = nx.DiGraph()
     for vertex, longitude in [("b", 2), ("a", 1), ("first", 0), ("second", 3)]:

@@ -1,127 +1,85 @@
-# Multi Origin Distance Optimizer
+# modo
 
-`modo` is a headless Python library that optimizes geographic and static-road
-destinations for multiple origins.
+`modo` is an interactive map and Python library for multi-origin road meeting
+regions. Confirm two or more origins and the map shows every stored road vertex
+where the longest individual drive is within one minute of the shortest
+possible longest drive.
 
 [Founder-directed. Built entirely by AI agents.](https://snowball-projects.github.io/licensing/#how-snowball-is-built)
 
-```python
-from modo import geographic_median, minimax_center
+The interface has one objective and one fixed tolerance. Each confirmed origin
+keeps its own color across the input, map pin, route, and travel time. Routes
+converge at one deterministic exact optimum inside the region, but the region
+is the primary result. Pins stay at confirmed coordinates, with dotted lines
+showing any snap to the nearest stored road vertex where routing begins.
 
-median = geographic_median([(10.0, 20.0), (12.0, 24.0)])
-center = minimax_center([(10.0, 20.0), (12.0, 24.0)])
+The initial interface covers a Chicago-area static road snapshot. It does not
+use live or historical traffic, recommend a venue, or imply that a displayed
+road point is safe to stop at. Route lines connect stored road vertices and can
+omit detailed curves between them.
+
+## Run the interface locally
+
+Python 3.11 or newer is required.
+
+```sh
+python -m pip install uv==0.12.6
+uv sync --extra app --extra test --locked
+uv run --locked python scripts/fetch_snapshot.py
+uv run --locked gunicorn modo.web:application
 ```
 
-`geographic_median` minimizes the sum of distances. `minimax_center` returns
-only the `(latitude, longitude)` center that minimizes the greatest distance,
-or equivalently the center of the smallest enclosing geodesic circle.
-Coordinates use `(latitude, longitude)` order. Both return a single input as a
-float tuple and return the WGS84 geodesic midpoint for two inputs. Empty,
-malformed, and out-of-range inputs raise `ValueError`.
+Open `http://127.0.0.1:8000`. Address suggestions come from the public Photon
+service. Coordinates can also be confirmed as `latitude, longitude`.
 
-The functions target ordinary regional datasets. `minimax_center` uses
-deterministic, order-independent starting points. Global inputs are supported
-on a best-effort basis, but antipodal and other pathological configurations may
-not have a unique answer. In particular, `minimax_center` uses numerical
-optimization and can converge to a non-global solution for such inputs.
+The included `render.yaml` describes a separate free-plan Render web service.
+It is deployment-ready, but the repository does not claim that a service is
+live until snowball publishes one.
 
-## Static-road reference optimizer
+## Python library
 
-`optimize_coordinates` snaps `(latitude, longitude)` origins to a weighted
-NetworkX road graph and exactly evaluates all mutually reachable vertices. Its
-`total` mode minimizes combined travel time, while its `maximum` mode minimizes
-the longest individual trip. Graph nodes need `x` longitude and `y` latitude
-attributes. Edges use `travel_time` seconds by default.
-
-```python
-from modo import optimize_coordinates
-
-result = optimize_coordinates(graph, origin_coordinates, "maximum",
-                              tolerance_seconds=60)
-```
-
-Use one analysis to reuse the same shortest-path searches across objectives and
-selected destinations:
-
-```python
-from modo import analyze_coordinates
-
-analysis = analyze_coordinates(graph, origin_coordinates)
-total = analysis.optimize("total", tolerance_seconds=60)
-maximum = analysis.optimize("maximum", tolerance_seconds=60)
-selected = analysis.travel_times_at_coordinate(selected_coordinate)
-```
-
-`total.region` and `maximum.region` contain the complete qualifying vertex
-sets. `selected.travel_times_seconds` contains one travel time per origin.
-
-For a smaller static runtime, compile the caller's graph into a versioned,
-compressed asset and load it without rebuilding a NetworkX graph:
+The public app is intentionally minimax-only. The package retains its general
+geographic functions and existing total-time road API for library users.
 
 ```python
 from modo import CompactRoadGraph
 
-roads = CompactRoadGraph.from_networkx(graph)
-roads.save("roads.npz")
-
 roads = CompactRoadGraph.load("roads.npz")
 analysis = roads.analyze_coordinates(origin_coordinates)
-total = analysis.optimize("total", tolerance_seconds=60)
-region_coordinates = roads.coordinates(total.region)
+result = analysis.optimize("maximum", tolerance_seconds=60)
+routes = analysis.routes(result.vertex)
+region_coordinates = roads.coordinates(result.region)
 ```
 
-Large graphs can keep exact objective and region semantics without retaining an
-origin-by-vertex distance matrix:
+`result.region` is the complete qualifying road-vertex set.
+`result.region_excess_seconds` reports how far each vertex is above the exact
+optimum. `analysis.routes` returns one shortest road-vertex path per origin.
 
-```python
-analysis = roads.analyze_coordinates(origin_coordinates,
-                                     retain_distances=False)
-```
+The lower-level NetworkX backend provides the same result and route contracts
+through `analyze_coordinates` and `analyze_vertices`. Compact snapshots can use
+`retain_distances=False` to stream shortest-path fields when memory is tighter.
 
-This memory-bounded mode streams one shortest-path field at a time and retains
-only total, maximum, and reachability arrays. It performs one reverse-graph
-shortest-path search when an optimum or caller-selected point needs individual
-travel times. Those values can differ from retained-field results at machine
-precision because floating-point edge costs are added in reverse order. The
-default retains all fields for faster repeated point queries.
+The package also keeps `geographic_median`, `minimax_center`, and the existing
+`total` road objective. The [mathematical model](docs/model.md) defines their
+semantics. The [architecture](docs/architecture.md) defines the boundary
+between the library, the modo interface, and fairway.
 
-Saved compact graphs support integer and string vertex IDs. The compact and
-NetworkX analyses use the same result, tolerance, and tie-breaking semantics.
-
-`optimize_vertices` is the lower-level equivalent for origins that are already
-snapped to graph vertex IDs. Tolerance is direct slack on the selected
-objective, so 60 seconds permits one additional minute of combined time in
-`total` mode or one additional minute on the longest trip in `maximum` mode.
-
-`result.region` contains every vertex within the tolerance. `result.vertex` and
-`result.coordinate` provide one exact optimum when a single location is useful.
-`result.region_excess_seconds` maps every region vertex to the number of seconds
-its objective exceeds the optimum.
-
-The current API receives the weighted graph as its first argument. It does not
-download road data or call routing services. The [mathematical model](docs/model.md)
-defines the objectives and region semantics. The [architecture](docs/architecture.md)
-defines the boundary between modo and fairway.
-
-## Development
-
-MODO requires Python 3.11 or newer. The lockfile makes the development and CI
-environment reproducible:
+## Checks
 
 ```sh
-python -m pip install uv==0.12.6
-uv sync --extra test --locked
 uv run --locked ruff check .
 uv run --locked python -m pytest
 uv run --locked python -m build
 ```
 
-The standard checks use only synthetic fixtures and do not require external
-services or local geographic data.
+The test suite uses synthetic fixtures and does not require geographic data or
+external services.
 
 ## License
 
-MODO is a snowball project licensed under the [Apache License 2.0](LICENSE).
-See [NOTICE](NOTICE) for attribution, [CONTRIBUTING.md](CONTRIBUTING.md) before
-submitting work, and snowball's [licensing and identity
-policy](https://snowball-projects.github.io/licensing/).
+modo is a snowball project licensed under the [Apache License 2.0](LICENSE).
+The OpenStreetMap-derived road snapshot is separately available under the Open
+Database License. See [data/README.md](data/README.md), [NOTICE](NOTICE),
+[CONTRIBUTING.md](CONTRIBUTING.md), and the [hosted-service policy](SERVICE.md).
+The locally served Leaflet stylesheet remains under BSD-2-Clause; see
+[LEAFLET-LICENSE.txt](src/modo/static/LEAFLET-LICENSE.txt).

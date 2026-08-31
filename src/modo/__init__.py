@@ -8,6 +8,7 @@ from scipy.optimize import minimize
 from .compact import CompactRoadGraph, CompactStaticRoadAnalysis
 from .road import (
     RoadResult,
+    RoadRoute,
     RoadTravelTimes,
     StaticRoadAnalysis,
     analyze_coordinates,
@@ -17,7 +18,7 @@ from .road import (
     optimize_vertices,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 _GEOD = Geodesic.WGS84
 
 
@@ -98,6 +99,6 @@ def minimax_center(coordinates):
 
 
 __all__ = ["CompactRoadGraph", "CompactStaticRoadAnalysis", "RoadResult",
-           "RoadTravelTimes", "StaticRoadAnalysis", "analyze_coordinates",
+           "RoadRoute", "RoadTravelTimes", "StaticRoadAnalysis", "analyze_coordinates",
            "analyze_vertices", "geographic_median", "minimax_center",
            "nearest_vertices", "optimize_coordinates", "optimize_vertices"]

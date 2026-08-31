@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "snapshots": [
+    {
+      "id": "chicago-static-v1",
+      "file": "chicago-static-v1.npz",
+      "url": "https://github.com/snowball-projects/fairway/releases/download/chicago-static-v1/chicago-static-v1.npz",
+      "sha256": "c095461796adda233387c66f5b32c433c0d8a76d184902daf848fed1a3f2d39c",
+      "cost_profile": "static-free-flow-seconds-v1",
+      "core_bounds": [41.8500077, -88.1399989, 42.1799662, -87.6012705],
+      "graph_bounds": [41.8500077, -88.1399989, 42.1799662, -87.6012705]
+    }
+  ]
+}

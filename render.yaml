@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: modo
+    runtime: python
+    plan: free
+    buildCommand: pip install '.[app]' && python scripts/fetch_snapshot.py
+    startCommand: gunicorn --preload modo.web:application
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.7
+      - key: MODO_GRAPH
+        value: data/chicago-static-v1.npz
+      - key: MODO_SNAPSHOT
+        value: chicago-static-v1

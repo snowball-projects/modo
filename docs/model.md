@@ -1,6 +1,8 @@
 # Mathematical model
 
-MODO optimizes driving time on a road graph.
+modo optimizes driving time on a road graph. Its public interface uses only the
+maximum-time objective with a fixed 60-second tolerance. The package retains a
+total-time objective as a general library API.
 
 ## Road graph
 
@@ -18,43 +20,14 @@ $$
 d_G(o_i,v)
 $$
 
-as the shortest driving time from origin $o_i$ to vertex $v$. MODO evaluates
+as the shortest driving time from origin $o_i$ to vertex $v$. modo evaluates
 the mutually reachable vertices
 
 $$
 R=\{v\in V\mid d_G(o_i,v)<\infty\text{ for every }i\}.
 $$
 
-## Total-time mode
-
-The total and average travel times to vertex $v$ are
-
-$$
-T(v)=\sum_{i=1}^{n}d_G(o_i,v),
-\qquad
-A(v)=\frac{T(v)}{n}.
-$$
-
-They select the same optimum:
-
-$$
-v_T^*=\arg\min_{v\in R}T(v),
-\qquad
-T^*=T(v_T^*).
-$$
-
-For a tolerance of $\Delta$ seconds of combined travel, the near-optimal region
-is
-
-$$
-S_{T,\Delta}
-=\{v\in R\mid T(v)\le T^*+\Delta\}.
-$$
-
-A 60-second tolerance allows one additional minute of combined group travel
-time.
-
-## Maximum-time mode
+## Maximum-time objective
 
 The longest individual trip to vertex $v$ is
 
@@ -74,8 +47,9 @@ $$
 S_{M,\Delta}=\{v\in R\mid M(v)\le M^*+\Delta\}.
 $$
 
-A 60-second tolerance keeps the longest trip within one minute of the best
-possible longest trip.
+For modo's interface, $\Delta=60$ seconds. Every vertex in the displayed
+region therefore keeps the longest trip within one minute of the best possible
+longest trip.
 
 Define origin $i$'s road-network isochrone as
 
@@ -83,7 +57,7 @@ $$
 B_i(r)=\{v\in V\mid d_G(o_i,v)\le r\}.
 $$
 
-The maximum-time optimum and region can then be written as
+The optimum and region can then be written as
 
 $$
 M^*=\min\{r\mid\bigcap_i B_i(r)\ne\varnothing\},
@@ -91,29 +65,62 @@ M^*=\min\{r\mid\bigcap_i B_i(r)\ne\varnothing\},
 S_{M,\Delta}=\bigcap_i B_i(M^*+\Delta).
 $$
 
+The result is an intersection of origin isochrones at a radius derived from
+the optimum. Calling the result itself a "one-minute isochrone" would be
+incorrect.
+
+## Total-time library objective
+
+The total and average travel times to vertex $v$ are
+
+$$
+T(v)=\sum_{i=1}^{n}d_G(o_i,v),
+\qquad
+A(v)=\frac{T(v)}{n}.
+$$
+
+They select the same optimum:
+
+$$
+v_T^*=\arg\min_{v\in R}T(v),
+\qquad
+T^*=T(v_T^*).
+$$
+
+For a tolerance of $\Delta$ seconds of combined travel, its near-optimal region
+is
+
+$$
+S_{T,\Delta}
+=\{v\in R\mid T(v)\le T^*+\Delta\}.
+$$
+
+This objective remains available in the Python package but is not exposed by
+the modo interface.
+
 ## Region
 
-The near-optimal region is MODO's mathematical result. It may be a cluster, a
-road corridor, several disconnected components, or a single vertex. MODO also
+The near-optimal region is modo's mathematical result. It may be a cluster, a
+road corridor, several disconnected components, or a single vertex. modo also
 selects one exact optimum as a representative when a single coordinate is
-useful, but that point is not the only meaningful result.
+needed for route reconstruction, but that point is not the only meaningful
+result.
 
 The region is a set of road vertices. Any polygon drawn around it is a derived
-presentation and does not replace the underlying result.
+presentation and does not replace the underlying result. modo's interface
+draws the vertices directly so disconnected components stay disconnected.
 
 When several vertices share the exact optimum, numbers, strings, and bytes use
 type-aware textual tie-breaking. Other hashable IDs fall back to their type and
 graph insertion order. Both road backends apply the same rule.
 
-For either objective $F\in\{T,M\}$, the excess of a region vertex is
+For either library objective $F\in\{T,M\}$, the excess of a region vertex is
 
 $$
 e_F(v)=F(v)-F^*.
 $$
 
-It ranges from zero at an exact optimum to $\Delta$ at the region boundary and
-can be used to present stronger emphasis nearer the optimum without changing
-the region.
+It ranges from zero at an exact optimum to $\Delta$ at the region boundary.
 
 Geographic centers and pairwise midpoints can be useful search seeds or visual
 references. They are not safe boundaries for a road optimum or its region.
@@ -121,15 +128,29 @@ references. They are not safe boundaries for a road optimum or its region.
 ## Selected-point evaluation
 
 For any caller-selected coordinate $q$, let $v_q$ be its corresponding road
-vertex. MODO's selected-point evaluation is the per-origin travel-time vector
+vertex. The package's selected-point evaluation is the per-origin travel-time
+vector
 
 $$
 C(q)=\left(d_G(o_1,v_q),\ldots,d_G(o_n,v_q)\right).
 $$
 
-This vector lets a caller show every traveler's trip and derive the total,
-average, and maximum travel times for any selected point. Coordinate
-snapping and display remain outside the mathematical result.
+This vector lets a library caller inspect every traveler's trip and derive
+aggregate values for a selected point. Coordinate snapping and display remain
+outside the mathematical result.
+
+## Route reconstruction
+
+For a chosen representative vertex $v_M^*$, modo reconstructs one shortest
+path from each origin to that vertex. A route is the stored vertex sequence
+
+$$
+P_i=(o_i,\ldots,v_M^*)
+$$
+
+whose edge costs sum to $d_G(o_i,v_M^*)$. Several shortest paths can tie, so
+the displayed route is one valid representative. Compact snapshots do not
+retain detailed edge curves between adjacent vertices.
 
 ## Static and time-dependent costs
 
@@ -142,13 +163,13 @@ $$
 It runs one shortest-path search per origin and exactly evaluates every vertex
 in $R$ under the supplied graph and weights.
 
-Future traffic-aware routing changes the edge cost to
+Traffic-aware routing would change the edge cost to
 
 $$
 w_e(t)=\text{time to traverse edge }e\text{ when entered at time }t
 $$
 
-and makes routes, objectives, and regions time-specific:
+and make routes, objectives, and regions time-specific:
 
 $$
 d_G(o_i,v;t_0),
@@ -179,4 +200,4 @@ t_2\ge t_1\Rightarrow t_2+w_e(t_2)\ge t_1+w_e(t_1),
 $$
 
 so entering an edge later cannot produce an earlier exit. Time-dependent costs,
-depart-at, and arrive-by are not implemented yet.
+depart-at, and arrive-by are not implemented.

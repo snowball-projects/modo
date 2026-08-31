@@ -12,6 +12,7 @@ from scipy.spatial import cKDTree
 
 from .road import (
     RoadResult,
+    RoadRoute,
     RoadTravelTimes,
     _coordinate,
     _edge_weight,
@@ -198,6 +199,43 @@ class CompactStaticRoadAnalysis:
     def travel_times_at_coordinate(self, coordinate):
         """Snap one coordinate and return its per-origin travel times."""
         return self.travel_times(self._road.nearest_vertices([coordinate])[0])
+
+    def routes(self, vertex):
+        """Return one shortest road-vertex path per origin to a vertex."""
+        try:
+            destination = self._road._indices[vertex]
+        except KeyError as error:
+            raise nx.NetworkXNoPath(
+                "vertex is not reachable from every origin") from error
+        if not self._reachable[destination]:
+            raise nx.NetworkXNoPath("vertex is not reachable from every origin")
+        matrix = self._road._matrix.T if self._road._directed else self._road._matrix
+        _distances, predecessors = dijkstra(
+            matrix,
+            directed=self._road._directed,
+            indices=destination,
+            return_predecessors=True,
+        )
+        travel_times = self.travel_times(vertex).travel_times_seconds
+        routes = []
+        for origin, travel_time in zip(
+                self._origin_indices, travel_times, strict=True):
+            indices = [int(origin)]
+            while indices[-1] != destination:
+                predecessor = int(predecessors[indices[-1]])
+                if predecessor < 0 or len(indices) > len(self._road._vertices):
+                    raise nx.NetworkXNoPath(
+                        "vertex is not reachable from every origin")
+                indices.append(predecessor)
+            vertices = tuple(self._road._vertices[index] for index in indices)
+            routes.append(RoadRoute(
+                vertices[0],
+                vertex,
+                vertices,
+                self._road.coordinates(vertices),
+                travel_time,
+            ))
+        return tuple(routes)
 
     def optimize(self, objective="total", tolerance_seconds=0):
         """Optimize without recalculating the sparse shortest paths."""

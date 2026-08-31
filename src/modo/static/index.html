@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Explore the one-minute road-network region that minimizes the longest drive."
+    />
+    <title>modo</title>
+    <link rel="stylesheet" href="/leaflet.css?v=1.9.4" />
+    <link rel="stylesheet" href="/styles.css?v=0.3.0" />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+      defer
+    ></script>
+    <script src="/app.js?v=0.3.0" defer></script>
+  </head>
+  <body>
+    <main>
+      <div id="map" role="region" aria-label="modo meeting-region map"></div>
+      <section class="panel" aria-label="modo controls">
+        <header>
+          <a class="brand" href="https://snowball-projects.github.io">modo</a>
+          <p>Find where the longest drive is as short as possible.</p>
+        </header>
+
+        <div class="section-heading">
+          <h1>Origins</h1>
+          <button id="add-origin" class="add" type="button">Add origin</button>
+        </div>
+        <div id="origins"></div>
+
+        <section id="result" class="result" hidden>
+          <p class="eyebrow">Best possible longest drive</p>
+          <strong id="best-time"></strong>
+          <p>
+            The teal road-network region keeps the longest drive within one minute of this result.
+            Routes use one exact optimum inside the region.
+          </p>
+        </section>
+
+        <p id="status" role="status" aria-live="polite">Confirm at least two origins.</p>
+
+        <details class="about">
+          <summary>How this works</summary>
+          <p>
+            modo minimizes only the longest individual trip. The result is the complete set of
+            stored road vertices within 60 seconds of that optimum, not a venue recommendation or
+            a safe stopping area. Routes follow stored road vertices and can omit detailed edge
+            curves. Pins stay at confirmed coordinates; dotted segments show any snap to the
+            nearest stored road vertex. Results use a static Chicago-area road snapshot without
+            traffic.
+          </p>
+          <p>
+            Address suggestions go directly to Photon. Map tiles come directly from OpenStreetMap.
+            <a href="https://github.com/snowball-projects/modo/blob/main/SERVICE.md">Service policy</a>
+            · <a href="https://github.com/snowball-projects/modo">Source</a>
+          </p>
+        </details>
+
+        <footer>
+          <a href="https://snowball-projects.github.io/licensing/#how-snowball-is-built"
+            >Founder-directed. Built entirely by AI agents.</a
+          >
+        </footer>
+      </section>
+    </main>
+  </body>
+</html>

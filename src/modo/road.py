@@ -29,6 +29,15 @@ class RoadTravelTimes:
     travel_times_seconds: tuple[float, ...]
 
 
+@dataclass(frozen=True)
+class RoadRoute:
+    origin_vertex: Hashable
+    destination_vertex: Hashable
+    vertices: tuple[Hashable, ...]
+    coordinates: tuple[tuple[float, float], ...]
+    travel_time_seconds: float
+
+
 class StaticRoadAnalysis:
     """Reusable shortest-path analysis for one graph and origin set."""
 
@@ -43,6 +52,7 @@ class StaticRoadAnalysis:
             _coordinate(graph, vertex)
         self.origin_vertices = origins
         normalized_weight = _networkx_weight(graph, weight)
+        self._weight = normalized_weight
         self._times = tuple(nx.single_source_dijkstra_path_length(
             graph, origin, weight=normalized_weight) for origin in origins)
         self._vertices = frozenset.intersection(
@@ -64,6 +74,23 @@ class StaticRoadAnalysis:
     def travel_times_at_coordinate(self, coordinate):
         """Snap one coordinate and return its per-origin travel times."""
         return self.travel_times(nearest_vertices(self._graph, [coordinate])[0])
+
+    def routes(self, vertex):
+        """Return one shortest road-vertex path per origin to a vertex."""
+        travel_times = self.travel_times(vertex).travel_times_seconds
+        routes = []
+        for origin, travel_time in zip(
+                self.origin_vertices, travel_times, strict=True):
+            vertices = tuple(nx.shortest_path(
+                self._graph, origin, vertex, weight=self._weight))
+            routes.append(RoadRoute(
+                origin,
+                vertex,
+                vertices,
+                tuple(_coordinate(self._graph, item) for item in vertices),
+                travel_time,
+            ))
+        return tuple(routes)
 
     def optimize(self, objective="total", tolerance_seconds=0):
         """Optimize without repeating the shortest-path searches."""

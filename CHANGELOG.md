@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-30
+
+### Added
+
+- A minimax-only web interface with persistent origin colors, dynamic pins,
+  one-minute road regions, and colored routes.
+- On-demand shortest road-vertex path reconstruction for both road backends.
+- A checksummed Chicago snapshot catalog, fetch tooling, hosted-service policy,
+  and free-plan Render blueprint.
+- A locally served Leaflet stylesheet so map layout does not depend on CDN CSS.
+
+### Changed
+
+- Made the one-minute maximum-time region the public product direction while
+  retaining total-time APIs for library compatibility.
+
 ## [0.2.0] - 2026-08-29
 
 ### Fixed
@@ -27,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Relicensed MODO from MPL-2.0 to Apache-2.0 and credited its public metadata
+- Relicensed modo from MPL-2.0 to Apache-2.0 and credited its public metadata
   to snowball.
 - Changed total-time tolerance from per-traveler average slack to direct slack
   on the combined-time objective.

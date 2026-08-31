@@ -9,3 +9,4 @@ dist/
 local-*.bundle
 local-*.geojson
 local-*.graphml
+data/*.npz

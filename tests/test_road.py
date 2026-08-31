@@ -117,6 +117,16 @@ def test_analysis_returns_travel_times_at_vertices_and_coordinates(graph):
     assert analysis.travel_times_at_coordinate((1, 2.1)).travel_times_seconds == (1, 9)
 
 
+def test_analysis_returns_shortest_routes_to_a_vertex(graph):
+    routes = analyze_vertices(graph, ["a", "b"]).routes("y")
+    assert [route.vertices for route in routes] == [("a", "y"), ("b", "y")]
+    assert [route.coordinates for route in routes] == [
+        ((0.0, 0.0), (1.0, 3.0)),
+        ((0.0, 10.0), (1.0, 3.0)),
+    ]
+    assert [route.travel_time_seconds for route in routes] == [5, 6]
+
+
 def test_analysis_rejects_a_vertex_not_reachable_from_every_origin(graph):
     with pytest.raises(nx.NetworkXNoPath, match="every origin"):
         analyze_vertices(graph, ["a", "b"]).travel_times("a")
@@ -150,6 +160,6 @@ def test_networkx_rejects_non_attribute_weight(graph):
 
 
 def test_road_api_is_public():
-    assert {"RoadResult", "RoadTravelTimes", "StaticRoadAnalysis",
+    assert {"RoadResult", "RoadRoute", "RoadTravelTimes", "StaticRoadAnalysis",
             "analyze_coordinates", "analyze_vertices", "nearest_vertices",
             "optimize_coordinates", "optimize_vertices"} <= set(modo.__all__)
