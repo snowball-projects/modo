@@ -1,22 +1,16 @@
 # modo
 
-`modo` is an interactive map and Python library for multi-origin road meeting
-regions. Confirm two or more origins and the map shows every stored road vertex
-where the longest individual drive is within one minute of the shortest
-possible longest drive.
+`modo` is a map and Python library for multi-origin road meeting regions. The
+[hosted interface](https://modo-m4as.onrender.com) minimizes the longest drive
+from two or more origins and shows every stored road vertex within 60 seconds
+of the optimum.
 
-[Founder-directed. Built entirely by AI agents.](https://snowball-projects.github.io/licensing/#how-snowball-is-built)
+[Built by AI agents](https://snowball-projects.github.io/licensing/#how-snowball-is-built)
 
-The interface has one objective and one fixed tolerance. Each confirmed origin
-keeps its own color across the input, map pin, route, and travel time. Routes
-converge at one deterministic exact optimum inside the region, but the region
-is the primary result. Pins stay at confirmed coordinates, with dotted lines
-showing any snap to the nearest stored road vertex where routing begins.
-
-The initial interface covers a Chicago-area static road snapshot. It does not
-use live or historical traffic, recommend a venue, or imply that a displayed
-road point is safe to stop at. Route lines connect stored road vertices and can
-omit detailed curves between them.
+The current interface uses a static Chicago-area snapshot without traffic. Its
+points are neither venue recommendations nor assurances of a safe stopping
+place. See the [model](docs/model.md), [architecture](docs/architecture.md), and
+[service policy](SERVICE.md) for calculation, data, and privacy details.
 
 ## Run the interface locally
 
@@ -32,14 +26,13 @@ uv run --locked gunicorn modo.web:application
 Open `http://127.0.0.1:8000`. Address suggestions come from the public Photon
 service. Coordinates can also be confirmed as `latitude, longitude`.
 
-The included `render.yaml` describes a separate free-plan Render web service.
-It is deployment-ready, but the repository does not claim that a service is
-live until snowball publishes one.
+`render.yaml` reproduces the hosted service from `uv.lock` and the checksummed
+snapshot catalog.
 
 ## Python library
 
-The public app is intentionally minimax-only. The package retains its general
-geographic functions and existing total-time road API for library users.
+The app is minimax-only. The package also supports total-time road results and
+general geographic centers.
 
 ```python
 from modo import CompactRoadGraph
@@ -51,18 +44,11 @@ routes = analysis.routes(result.vertex)
 region_coordinates = roads.coordinates(result.region)
 ```
 
-`result.region` is the complete qualifying road-vertex set.
-`result.region_excess_seconds` reports how far each vertex is above the exact
-optimum. `analysis.routes` returns one shortest road-vertex path per origin.
-
-The lower-level NetworkX backend provides the same result and route contracts
-through `analyze_coordinates` and `analyze_vertices`. Compact snapshots can use
-`retain_distances=False` to stream shortest-path fields when memory is tighter.
-
-The package also keeps `geographic_median`, `minimax_center`, and the existing
-`total` road objective. The [mathematical model](docs/model.md) defines their
-semantics. The [architecture](docs/architecture.md) defines the boundary
-between the library, the modo interface, and fairway.
+`result.region` is the complete qualifying vertex set;
+`region_excess_seconds` gives each vertex's distance above the optimum. The
+NetworkX backend exposes the same contracts, and compact analysis accepts
+`retain_distances=False` for lower-memory scoring. Exact semantics are in the
+[mathematical model](docs/model.md).
 
 ## Checks
 
@@ -72,14 +58,13 @@ uv run --locked python -m pytest
 uv run --locked python -m build
 ```
 
-The test suite uses synthetic fixtures and does not require geographic data or
-external services.
+Tests use synthetic fixtures and require no geographic data or external services.
 
 ## License
 
 modo is a snowball project licensed under the [Apache License 2.0](LICENSE).
-The OpenStreetMap-derived road snapshot is separately available under the Open
-Database License. See [data/README.md](data/README.md), [NOTICE](NOTICE),
-[CONTRIBUTING.md](CONTRIBUTING.md), and the [hosted-service policy](SERVICE.md).
-The locally served Leaflet stylesheet remains under BSD-2-Clause; see
-[LEAFLET-LICENSE.txt](src/modo/static/LEAFLET-LICENSE.txt).
+The road snapshot is separately licensed under the Open Database License, and
+the local Leaflet stylesheet remains BSD-2-Clause. See
+[data notes](data/README.md), [NOTICE](NOTICE),
+[contribution terms](CONTRIBUTING.md), and the
+[Leaflet license](src/modo/static/LEAFLET-LICENSE.txt).

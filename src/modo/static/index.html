@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Explore the one-minute road-network region that minimizes the longest drive."
+      content="Find road meeting regions that minimize the longest drive."
     />
     <title>modo</title>
     <link rel="stylesheet" href="/leaflet.css?v=1.9.4" />
@@ -48,12 +48,10 @@
         <details class="about">
           <summary>How this works</summary>
           <p>
-            modo minimizes only the longest individual trip. The result is the complete set of
-            stored road vertices within 60 seconds of that optimum, not a venue recommendation or
-            a safe stopping area. Routes follow stored road vertices and can omit detailed edge
-            curves. Pins stay at confirmed coordinates; dotted segments show any snap to the
-            nearest stored road vertex. Results use a static Chicago-area road snapshot without
-            traffic.
+            Teal points are road vertices within 60 seconds of the shortest possible longest trip,
+            not venues or safe stops. Routes may omit road curves. Pins stay at confirmed
+            coordinates; dotted segments show road-vertex snaps. Results use a static Chicago-area
+            snapshot without traffic.
           </p>
           <p>
             Address suggestions go directly to Photon. Map tiles come directly from OpenStreetMap.

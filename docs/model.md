@@ -152,7 +152,7 @@ whose edge costs sum to $d_G(o_i,v_M^*)$. Several shortest paths can tie, so
 the displayed route is one valid representative. Compact snapshots do not
 retain detailed edge curves between adjacent vertices.
 
-## Static and time-dependent costs
+## Static costs
 
 The current implementation uses constant edge costs:
 
@@ -163,41 +163,6 @@ $$
 It runs one shortest-path search per origin and exactly evaluates every vertex
 in $R$ under the supplied graph and weights.
 
-Traffic-aware routing would change the edge cost to
-
-$$
-w_e(t)=\text{time to traverse edge }e\text{ when entered at time }t
-$$
-
-and make routes, objectives, and regions time-specific:
-
-$$
-d_G(o_i,v;t_0),
-$$
-
-$$
-T(v,t_0)=\sum_{i=1}^{n}d_G(o_i,v;t_0),
-\qquad
-M(v,t_0)=\max_{1\le i\le n}d_G(o_i,v;t_0),
-$$
-
-$$
-S_\Delta(t_0)=\{v\mid f(v,t_0)\le f^*(t_0)+\Delta\}.
-$$
-
-Here $t_0$ is a requested departure time and $f$ is the selected objective.
-For a required arrival time $T$, let $L_i(v,T)$ be origin $i$'s latest feasible
-departure time. Its trip duration is
-
-$$
-D_i(v,T)=T-L_i(v,T).
-$$
-
-A time-dependent model should satisfy the FIFO property
-
-$$
-t_2\ge t_1\Rightarrow t_2+w_e(t_2)\ge t_1+w_e(t_1),
-$$
-
-so entering an edge later cannot produce an earlier exit. Time-dependent costs,
-depart-at, and arrive-by are not implemented.
+Traffic, depart-at, and arrive-by calculations are not implemented. They would
+require time-dependent edge costs and time-specific routes, objectives, and
+regions rather than the model above.
