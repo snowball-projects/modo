@@ -160,8 +160,11 @@ $$
 w_e=\text{constant}.
 $$
 
-It runs one shortest-path search per origin and exactly evaluates every vertex
-in $R$ under the supplied graph and weights.
+The library can calculate full shortest-path fields. The hosted service
+interleaves one frontier per distinct snapped origin and stops after settling
+every label needed for the exact optimum and complete 60-second region. It
+rejects groups that exceed its work budget. Exactness is relative to the
+supplied graph and weights.
 
 Traffic, depart-at, and arrive-by calculations are not implemented. They would
 require time-dependent edge costs and time-specific routes, objectives, and

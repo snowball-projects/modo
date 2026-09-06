@@ -9,15 +9,9 @@
     />
     <title>modo</title>
     <link rel="stylesheet" href="/leaflet.css?v=1.9.4" />
-    <link rel="stylesheet" href="/styles.css?v=0.3.2" />
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-      referrerpolicy="no-referrer"
-      defer
-    ></script>
-    <script src="/app.js?v=0.3.2" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=0.3.4" />
+    <script src="/leaflet.js?v=1.9.4" defer></script>
+    <script src="/app.js?v=0.3.4" defer></script>
   </head>
   <body>
     <main>
@@ -35,6 +29,7 @@
         <div id="origins"></div>
 
         <p id="status" role="status" aria-live="polite">Confirm at least two origins.</p>
+        <p id="result-summary" class="sr-only" aria-live="polite"></p>
 
         <details class="about">
           <summary>How this works</summary>
@@ -50,12 +45,6 @@
             · <a href="https://github.com/snowball-projects/modo">Source</a>
           </p>
         </details>
-
-        <footer>
-          <a href="https://snowball-projects.github.io/licensing/#how-snowball-is-built"
-            >Founder-directed. Built entirely by AI agents.</a
-          >
-        </footer>
       </section>
     </main>
   </body>

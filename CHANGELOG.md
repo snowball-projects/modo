@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-06
+
+### Added
+
+- Added deterministic time-dependent minimax and optional Valhalla benchmark
+  experiments without adding either engine or traffic data to production.
+- Added a two-request TomTom capability probe; route and reachable-range access
+  succeeded with the configured key while production remains exact and static.
+
+### Security
+
+- Parse pathological JSON numbers as bad requests and load a verified road
+  snapshot from the same open file handle.
+- Enforce HTTPS on every snapshot redirect, a whole-download deadline, and an
+  exact declared content length.
+
+### Changed
+
+- Fail clearly when the hosted bounded search exhausts its work budget instead
+  of falling back to a full-graph scan, and reuse its predecessor labels for
+  route reconstruction without a second graph traversal.
+- Consolidate agent instructions through `AGENTS.md` and a `CLAUDE.md` import.
+- Collect core and experiment tests together without module-name collisions.
+
+### Fixed
+
+- Include snapshot tools and linked documentation in source distributions so
+  their tests and setup instructions work outside a Git checkout.
+- Credit the locally served Leaflet JavaScript alongside its stylesheet and
+  align the model's implementation description with the bounded search.
+
+## [0.3.3] - 2026-08-31
+
+### Changed
+
+- Streamed only the maximum objective in the hosted calculation, deduplicated
+  identical snapped origins, and bounded region and route materialization.
+- Added a budgeted exact simultaneous-frontier fast path for local groups with
+  an exact streaming fallback when the frontier grows.
+- Added source and artifact manifests for future builds, a production snapshot
+  validator, and a live-artifact CI smoke check.
+- Inset the supported Chicago core by about two kilometers to preserve a
+  routing halo and reduced the maximum road snap from five kilometers to one.
+- Updated the hosted runtime to Python 3.14 and Gunicorn 26.
+- Added an identifier-free global evaluation rate budget for the free service.
+- Served Leaflet JavaScript locally and removed executable CDN permission from
+  the content security policy.
+
+### Fixed
+
+- Stopped address-field typing and unchanged confirmed origins from repeating
+  calculations.
+- Added a screen-reader result location, corrected the Origins heading
+  contrast, and rejected undirected or implicitly weighted production data.
+
 ## [0.3.2] - 2026-08-31
 
 ### Changed

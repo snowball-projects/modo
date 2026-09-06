@@ -53,13 +53,20 @@ class StaticRoadAnalysis:
         self.origin_vertices = origins
         normalized_weight = _networkx_weight(graph, weight)
         self._weight = normalized_weight
-        self._times = tuple(nx.single_source_dijkstra_path_length(
-            graph, origin, weight=normalized_weight) for origin in origins)
+        self._times = tuple(
+            nx.single_source_dijkstra_path_length(
+                graph, origin, weight=normalized_weight
+            )
+            for origin in origins
+        )
         self._vertices = frozenset.intersection(
-            *(frozenset(values) for values in self._times))
-        self._vertices = frozenset(vertex for vertex in self._vertices
-                                   if all(isfinite(float(values[vertex]))
-                                          for values in self._times))
+            *(frozenset(values) for values in self._times)
+        )
+        self._vertices = frozenset(
+            vertex
+            for vertex in self._vertices
+            if all(isfinite(float(values[vertex])) for values in self._times)
+        )
         if not self._vertices:
             raise nx.NetworkXNoPath("origins have no mutually reachable vertex")
 
@@ -67,9 +74,12 @@ class StaticRoadAnalysis:
         """Return per-origin travel times to a mutually reachable vertex."""
         if vertex not in self._vertices:
             raise nx.NetworkXNoPath("vertex is not reachable from every origin")
-        return RoadTravelTimes(vertex, _coordinate(self._graph, vertex),
-                               self.origin_vertices,
-                               tuple(float(values[vertex]) for values in self._times))
+        return RoadTravelTimes(
+            vertex,
+            _coordinate(self._graph, vertex),
+            self.origin_vertices,
+            tuple(float(values[vertex]) for values in self._times),
+        )
 
     def travel_times_at_coordinate(self, coordinate):
         """Snap one coordinate and return its per-origin travel times."""
@@ -79,17 +89,19 @@ class StaticRoadAnalysis:
         """Return one shortest road-vertex path per origin to a vertex."""
         travel_times = self.travel_times(vertex).travel_times_seconds
         routes = []
-        for origin, travel_time in zip(
-                self.origin_vertices, travel_times, strict=True):
-            vertices = tuple(nx.shortest_path(
-                self._graph, origin, vertex, weight=self._weight))
-            routes.append(RoadRoute(
-                origin,
-                vertex,
-                vertices,
-                tuple(_coordinate(self._graph, item) for item in vertices),
-                travel_time,
-            ))
+        for origin, travel_time in zip(self.origin_vertices, travel_times, strict=True):
+            vertices = tuple(
+                nx.shortest_path(self._graph, origin, vertex, weight=self._weight)
+            )
+            routes.append(
+                RoadRoute(
+                    origin,
+                    vertex,
+                    vertices,
+                    tuple(_coordinate(self._graph, item) for item in vertices),
+                    travel_time,
+                )
+            )
         return tuple(routes)
 
     def optimize(self, objective="total", tolerance_seconds=0):
@@ -99,21 +111,34 @@ class StaticRoadAnalysis:
         tolerance_seconds = _tolerance(tolerance_seconds)
 
         score = _total if objective == "total" else max
-        scores = {vertex: score(values[vertex] for values in self._times)
-                  for vertex in self._vertices}
+        scores = {
+            vertex: score(values[vertex] for values in self._times)
+            for vertex in self._vertices
+        }
         if not all(isfinite(value) for value in scores.values()):
             raise ValueError("road objective scores must be finite")
-        vertex = min(self._vertices, key=lambda item: (
-            scores[item], _vertex_key(item, self._order[item])))
-        region = frozenset(item for item in self._vertices
-                           if scores[item] - scores[vertex] <= tolerance_seconds)
-        excess = MappingProxyType({
-            item: float(scores[item] - scores[vertex]) for item in region
-        })
+        vertex = min(
+            self._vertices,
+            key=lambda item: (scores[item], _vertex_key(item, self._order[item])),
+        )
+        region = frozenset(
+            item
+            for item in self._vertices
+            if scores[item] - scores[vertex] <= tolerance_seconds
+        )
+        excess = MappingProxyType(
+            {item: float(scores[item] - scores[vertex]) for item in region}
+        )
         travel_times = self.travel_times(vertex)
-        return RoadResult(vertex, travel_times.coordinate, self.origin_vertices, region,
-                          float(scores[vertex]), travel_times.travel_times_seconds,
-                          excess)
+        return RoadResult(
+            vertex,
+            travel_times.coordinate,
+            self.origin_vertices,
+            region,
+            float(scores[vertex]),
+            travel_times.travel_times_seconds,
+            excess,
+        )
 
 
 def _coordinate(graph, vertex):
@@ -124,10 +149,15 @@ def _coordinate(graph, vertex):
         raise ValueError(
             "road vertices must have numeric x and y coordinates in geographic ranges"
         ) from error
-    if (not isfinite(latitude) or not isfinite(longitude)
-            or abs(latitude) > 90 or abs(longitude) > 180):
+    if (
+        not isfinite(latitude)
+        or not isfinite(longitude)
+        or abs(latitude) > 90
+        or abs(longitude) > 180
+    ):
         raise ValueError(
-            "road vertices must have numeric x and y coordinates in geographic ranges")
+            "road vertices must have numeric x and y coordinates in geographic ranges"
+        )
     return latitude, longitude
 
 
@@ -153,7 +183,8 @@ def _networkx_weight(graph, weight):
         return None
     if graph.is_multigraph():
         return lambda start, end, data: min(
-            _edge_weight(attributes, weight) for attributes in data.values())
+            _edge_weight(attributes, weight) for attributes in data.values()
+        )
     return lambda start, end, data: _edge_weight(data, weight)
 
 
@@ -188,10 +219,13 @@ def analyze_vertices(graph, origins, weight="travel_time"):
     return StaticRoadAnalysis(graph, origins, weight)
 
 
-def optimize_vertices(graph, origins, objective="total", tolerance_seconds=0,
-                      weight="travel_time"):
+def optimize_vertices(
+    graph, origins, objective="total", tolerance_seconds=0, weight="travel_time"
+):
     """Optimize mutually reachable vertices in a static weighted road graph."""
-    return analyze_vertices(graph, origins, weight).optimize(objective, tolerance_seconds)
+    return analyze_vertices(graph, origins, weight).optimize(
+        objective, tolerance_seconds
+    )
 
 
 def nearest_vertices(graph, coordinates):
@@ -199,11 +233,15 @@ def nearest_vertices(graph, coordinates):
     try:
         points = tuple((float(lat), float(lon)) for lat, lon in coordinates)
     except (OverflowError, TypeError, ValueError) as error:
-        raise ValueError("coordinates must contain (latitude, longitude) pairs") from error
+        raise ValueError(
+            "coordinates must contain (latitude, longitude) pairs"
+        ) from error
     if not points:
         raise ValueError("coordinates must not be empty")
-    if any(not isfinite(lat) or not isfinite(lon) or abs(lat) > 90 or abs(lon) > 180
-           for lat, lon in points):
+    if any(
+        not isfinite(lat) or not isfinite(lon) or abs(lat) > 90 or abs(lon) > 180
+        for lat, lon in points
+    ):
         raise ValueError("coordinates are out of range")
     vertices = tuple(graph)
     if not vertices:
@@ -214,13 +252,18 @@ def nearest_vertices(graph, coordinates):
         return cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)
 
     tree = cKDTree([vector(*_coordinate(graph, node)) for node in vertices])
-    return tuple(vertices[index] for index in tree.query([vector(*point) for point in points])[1])
+    return tuple(
+        vertices[index] for index in tree.query([vector(*point) for point in points])[1]
+    )
 
 
-def optimize_coordinates(graph, origins, objective="total", tolerance_seconds=0,
-                         weight="travel_time"):
+def optimize_coordinates(
+    graph, origins, objective="total", tolerance_seconds=0, weight="travel_time"
+):
     """Snap origin coordinates to vertices and optimize the static road graph."""
-    return analyze_coordinates(graph, origins, weight).optimize(objective, tolerance_seconds)
+    return analyze_coordinates(graph, origins, weight).optimize(
+        objective, tolerance_seconds
+    )
 
 
 def analyze_coordinates(graph, origins, weight="travel_time"):

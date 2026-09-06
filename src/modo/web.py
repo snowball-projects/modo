@@ -5,12 +5,15 @@ import logging
 import mimetypes
 import os
 from hashlib import sha256
-from math import asin, cos, isfinite, radians, sin, sqrt
+from math import asin, ceil, cos, isfinite, radians, sin, sqrt
 from pathlib import Path
+from threading import Lock
+from time import monotonic
 
 import networkx as nx
 
 from . import CompactRoadGraph, __version__
+from .compact import _ResultLimitExceeded
 from .snapshots import DEFAULT_CATALOG, load_catalog
 
 STATIC = Path(__file__).with_name("static")
@@ -27,9 +30,17 @@ MAX_REQUEST_BYTES = 32_768
 MAX_ORIGINS = 32
 MAX_REGION_POINTS = 5_000
 MAX_ROUTE_POINTS = 100_000
-MAX_SNAP_DISTANCE_KILOMETERS = 5
+MAX_SNAP_DISTANCE_KILOMETERS = 1
+MIN_SPARSE_LABELS = 5_000
+MAX_SPARSE_LABELS = 50_000
+SPARSE_LABEL_FRACTION = 0.025
+EVALUATION_BURST = 4
+EVALUATIONS_PER_SECOND = 1
 LOGGER = logging.getLogger(__name__)
 _graph = None
+_evaluation_tokens = float(EVALUATION_BURST)
+_evaluation_refill = monotonic()
+_evaluation_lock = Lock()
 _SECURITY_HEADERS = (
     ("X-Content-Type-Options", "nosniff"),
     ("Referrer-Policy", "strict-origin-when-cross-origin"),
@@ -45,7 +56,7 @@ _CONTENT_SECURITY_POLICY = (
     "frame-ancestors 'none'; "
     "img-src 'self' data: https://tile.openstreetmap.org; "
     "object-src 'none'; "
-    "script-src 'self' https://unpkg.com; "
+    "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'"
 )
 
@@ -73,14 +84,18 @@ def _road():
         with Path(GRAPH_PATH).open("rb") as source:
             while chunk := source.read(1024 * 1024):
                 digest.update(chunk)
-        if digest.hexdigest() != SNAPSHOT_METADATA.sha256:
-            raise RuntimeError("configured road snapshot checksum does not match catalog")
-        _graph = CompactRoadGraph.load(GRAPH_PATH)
+            if digest.hexdigest() != SNAPSHOT_METADATA.sha256:
+                raise RuntimeError(
+                    "configured road snapshot checksum does not match catalog"
+                )
+            source.seek(0)
+            road = CompactRoadGraph.load(source)
+        _graph = road.validate_snapshot(SNAPSHOT_METADATA.graph_bounds)
     return _graph
 
 
 def _json(start_response, status, value, headers=()):
-    body = json.dumps(value, separators=(",", ":")).encode()
+    body = json.dumps(value, separators=(",", ":"), allow_nan=False).encode()
     start_response(
         status,
         [
@@ -92,6 +107,23 @@ def _json(start_response, status, value, headers=()):
         ],
     )
     return [body]
+
+
+def _claim_evaluation():
+    global _evaluation_tokens, _evaluation_refill
+    with _evaluation_lock:
+        now = monotonic()
+        elapsed = max(0, now - _evaluation_refill)
+        _evaluation_refill = now
+        _evaluation_tokens = min(
+            EVALUATION_BURST,
+            _evaluation_tokens + elapsed * EVALUATIONS_PER_SECOND,
+        )
+        if _evaluation_tokens < 1:
+            wait = max(1, ceil((1 - _evaluation_tokens) / EVALUATIONS_PER_SECOND))
+            return False, wait
+        _evaluation_tokens -= 1
+        return True, 0
 
 
 def _body(environ):
@@ -117,7 +149,7 @@ def _body(environ):
         raise _PayloadTooLarge("request is too large")
     try:
         request = json.loads(body or b"{}")
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
+    except (UnicodeDecodeError, ValueError, RecursionError) as error:
         raise _BadRequest("request body must be valid UTF-8 JSON") from error
     if not isinstance(request, dict):
         raise _BadRequest("JSON body must be an object")
@@ -136,8 +168,9 @@ def _coordinates(value):
     ):
         raise _BadRequest("origin coordinates must be JSON numbers")
     try:
-        points = tuple((float(latitude), float(longitude))
-                       for latitude, longitude in value)
+        points = tuple(
+            (float(latitude), float(longitude)) for latitude, longitude in value
+        )
     except (OverflowError, TypeError, ValueError) as error:
         raise _BadRequest("origins must contain latitude, longitude pairs") from error
     if any(
@@ -176,6 +209,23 @@ def _snap_origins(road, coordinates):
     return vertices, snapped
 
 
+def _unique_origins(vertices):
+    unique = []
+    positions = {}
+    expansion = []
+    for vertex in vertices:
+        if vertex not in positions:
+            positions[vertex] = len(unique)
+            unique.append(vertex)
+        expansion.append(positions[vertex])
+    return tuple(unique), tuple(expansion)
+
+
+def _sparse_label_budget(road, origin_count):
+    estimate = ceil(SPARSE_LABEL_FRACTION * origin_count * road._matrix.shape[0])
+    return max(MIN_SPARSE_LABELS, min(MAX_SPARSE_LABELS, estimate))
+
+
 def _region(road, result):
     points = sorted(
         result.region_excess_seconds.items(),
@@ -201,22 +251,40 @@ def _evaluate(environ, start_response):
         )
     road = _road()
     origin_vertices, snapped_origins = _snap_origins(road, coordinates)
+    unique_origins, expansion = _unique_origins(origin_vertices)
+    accepted, retry_after = _claim_evaluation()
+    if not accepted:
+        return _json(
+            start_response,
+            "429 Too Many Requests",
+            {"error": "modo is busy; retry shortly"},
+            (("Retry-After", str(retry_after)),),
+        )
     try:
-        analysis = road.analyze_vertices(origin_vertices)
-        result = analysis.optimize("maximum", REGION_TOLERANCE_SECONDS)
+        outcome = road._bounded_maximum_result_and_routes(
+            unique_origins,
+            REGION_TOLERANCE_SECONDS,
+            MAX_REGION_POINTS,
+            _sparse_label_budget(road, len(unique_origins)),
+        )
+        if outcome is None:
+            raise _UnprocessableRequest(
+                "This origin group exceeds modo's current exact-search limit."
+            )
+        result, routes = outcome
     except nx.NetworkXNoPath as error:
         raise _UnprocessableRequest(
             "These origins have no mutually reachable road location."
         ) from error
-    if len(result.region) > MAX_REGION_POINTS:
+    except _ResultLimitExceeded as error:
         raise _UnprocessableRequest(
             "The one-minute region is too large for this hosted interface."
-        )
-    routes = analysis.routes(result.vertex)
-    if sum(len(route.coordinates) for route in routes) > MAX_ROUTE_POINTS:
+        ) from error
+    if sum(len(routes[index].coordinates) for index in expansion) > MAX_ROUTE_POINTS:
         raise _UnprocessableRequest(
             "The routes are too large for this hosted interface."
         )
+    travel_times = [result.travel_times_seconds[index] for index in expansion]
     return _json(
         start_response,
         "200 OK",
@@ -224,9 +292,12 @@ def _evaluate(environ, start_response):
             "origins": [list(point) for point in coordinates],
             "snapped_origins": [list(point) for point in snapped_origins],
             "objective_seconds": result.objective_seconds,
-            "travel_times_seconds": list(result.travel_times_seconds),
+            "travel_times_seconds": travel_times,
             "region": _region(road, result),
-            "routes": [[list(point) for point in route.coordinates] for route in routes],
+            "routes": [
+                [list(point) for point in routes[index].coordinates]
+                for index in expansion
+            ],
             "provenance": {
                 "snapshot": SNAPSHOT,
                 "snapshot_sha256": SNAPSHOT_METADATA.sha256,

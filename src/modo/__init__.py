@@ -18,7 +18,7 @@ from .road import (
     optimize_vertices,
 )
 
-__version__ = "0.3.2"
+__version__ = "0.3.4"
 _GEOD = Geodesic.WGS84
 
 
@@ -26,11 +26,15 @@ def _points(coordinates):
     try:
         points = [(float(lat), float(lon)) for lat, lon in coordinates]
     except (OverflowError, TypeError, ValueError) as error:
-        raise ValueError("coordinates must contain (latitude, longitude) pairs") from error
+        raise ValueError(
+            "coordinates must contain (latitude, longitude) pairs"
+        ) from error
     if not points:
         raise ValueError("coordinates must not be empty")
-    if any(not isfinite(lat) or not isfinite(lon) or abs(lat) > 90 or abs(lon) > 180
-           for lat, lon in points):
+    if any(
+        not isfinite(lat) or not isfinite(lon) or abs(lat) > 90 or abs(lon) > 180
+        for lat, lon in points
+    ):
         raise ValueError("coordinates are out of range")
     return points
 
@@ -55,11 +59,21 @@ def geographic_median(coordinates):
     x = sum(cos(radians(lat)) * cos(radians(lon)) for lat, lon in points)
     y = sum(cos(radians(lat)) * sin(radians(lon)) for lat, lon in points)
     z = sum(sin(radians(lat)) for lat, _ in points)
-    center = points[0] if x == y == z == 0 else (degrees(atan2(z, hypot(x, y))), degrees(atan2(y, x)))
-    results = [minimize(total_distance, start, method="Powell",
-                        bounds=((-90, 90), (-180, 180)),
-                        options={"xtol": 1e-9, "ftol": 1e-12})
-               for start in dict.fromkeys([center, *points])]
+    center = (
+        points[0]
+        if x == y == z == 0
+        else (degrees(atan2(z, hypot(x, y))), degrees(atan2(y, x)))
+    )
+    results = [
+        minimize(
+            total_distance,
+            start,
+            method="Powell",
+            bounds=((-90, 90), (-180, 180)),
+            options={"xtol": 1e-9, "ftol": 1e-12},
+        )
+        for start in dict.fromkeys([center, *points])
+    ]
     valid = [result for result in results if result.success]
     if not valid:
         raise RuntimeError("geographic median did not converge")
@@ -86,11 +100,22 @@ def minimax_center(coordinates):
     x = sum(cos(radians(lat)) * cos(radians(lon)) for lat, lon in points)
     y = sum(cos(radians(lat)) * sin(radians(lon)) for lat, lon in points)
     z = sum(sin(radians(lat)) for lat, _ in points)
-    center = min(points) if x == y == z == 0 else (degrees(atan2(z, hypot(x, y))), degrees(atan2(y, x)))
+    center = (
+        min(points)
+        if x == y == z == 0
+        else (degrees(atan2(z, hypot(x, y))), degrees(atan2(y, x)))
+    )
     starts = [center, *sorted(set(points))]
-    results = [minimize(maximum_distance, start, method="Powell",
-                        bounds=((-90, 90), (-180, 180)),
-                        options={"xtol": 1e-9, "ftol": 1e-12}) for start in starts]
+    results = [
+        minimize(
+            maximum_distance,
+            start,
+            method="Powell",
+            bounds=((-90, 90), (-180, 180)),
+            options={"xtol": 1e-9, "ftol": 1e-12},
+        )
+        for start in starts
+    ]
     valid = [result for result in results if result.success]
     if not valid:
         raise RuntimeError("minimax center did not converge")
@@ -98,7 +123,18 @@ def minimax_center(coordinates):
     return float(latitude), float(longitude)
 
 
-__all__ = ["CompactRoadGraph", "CompactStaticRoadAnalysis", "RoadResult",
-           "RoadRoute", "RoadTravelTimes", "StaticRoadAnalysis", "analyze_coordinates",
-           "analyze_vertices", "geographic_median", "minimax_center",
-           "nearest_vertices", "optimize_coordinates", "optimize_vertices"]
+__all__ = [
+    "CompactRoadGraph",
+    "CompactStaticRoadAnalysis",
+    "RoadResult",
+    "RoadRoute",
+    "RoadTravelTimes",
+    "StaticRoadAnalysis",
+    "analyze_coordinates",
+    "analyze_vertices",
+    "geographic_median",
+    "minimax_center",
+    "nearest_vertices",
+    "optimize_coordinates",
+    "optimize_vertices",
+]

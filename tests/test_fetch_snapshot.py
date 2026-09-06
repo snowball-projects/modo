@@ -1,5 +1,7 @@
 from hashlib import sha256
+from io import BytesIO
 from types import SimpleNamespace
+from urllib.error import HTTPError
 
 import pytest
 
@@ -38,7 +40,7 @@ def snapshot(body=b"roads"):
 def opener(response):
     def open_url(url, *, timeout):
         assert url == "https://example.test/roads"
-        assert timeout == fetch_snapshot.DOWNLOAD_TIMEOUT_SECONDS
+        assert 0 < timeout <= fetch_snapshot.DOWNLOAD_TIMEOUT_SECONDS
         return response
 
     return open_url
@@ -102,4 +104,75 @@ def test_rejects_checksum_mismatch_without_replacing_destination(tmp_path):
     destination = tmp_path / "roads.npz"
     with pytest.raises(RuntimeError, match="checksum does not match"):
         fetch_snapshot.fetch(snapshot(), destination, opener(Response(b"other")))
+    assert list(tmp_path.iterdir()) == []
+
+
+def redirect(url, location, code=302):
+    return HTTPError(url, code, "redirect", {"Location": location}, BytesIO())
+
+
+def test_follows_only_bounded_https_redirects(tmp_path):
+    calls = []
+
+    def open_url(url, *, timeout):
+        calls.append((url, timeout))
+        if len(calls) == 1:
+            raise redirect(url, "/immutable/roads.npz")
+        return Response(url=url)
+
+    destination = tmp_path / "roads.npz"
+    assert fetch_snapshot.fetch(snapshot(), destination, open_url) is True
+    assert [url for url, _timeout in calls] == [
+        "https://example.test/roads",
+        "https://example.test/immutable/roads.npz",
+    ]
+
+
+def test_rejects_redirect_outside_https(tmp_path):
+    def open_url(url, *, timeout):
+        raise redirect(url, "http://example.test/roads.npz")
+
+    with pytest.raises(RuntimeError, match="redirected outside HTTPS"):
+        fetch_snapshot.fetch(snapshot(), tmp_path / "roads.npz", open_url)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_rejects_too_many_redirects(monkeypatch, tmp_path):
+    monkeypatch.setattr(fetch_snapshot, "MAX_REDIRECTS", 1)
+
+    def open_url(url, *, timeout):
+        raise redirect(url, "/again")
+
+    with pytest.raises(RuntimeError, match="too many redirects"):
+        fetch_snapshot.fetch(snapshot(), tmp_path / "roads.npz", open_url)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_rejects_non_redirect_http_errors(tmp_path):
+    def open_url(url, *, timeout):
+        raise HTTPError(url, 503, "unavailable", {}, BytesIO())
+
+    with pytest.raises(RuntimeError, match="failed with status 503"):
+        fetch_snapshot.fetch(snapshot(), tmp_path / "roads.npz", open_url)
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_rejects_download_past_total_deadline(tmp_path):
+    readings = iter((0, 0, 61))
+
+    with pytest.raises(RuntimeError, match="timed out"):
+        fetch_snapshot.fetch(
+            snapshot(),
+            tmp_path / "roads.npz",
+            opener(Response()),
+            clock=lambda: next(readings),
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_rejects_content_length_mismatch(tmp_path):
+    response = Response(headers={"Content-Length": "6"})
+
+    with pytest.raises(RuntimeError, match="content length does not match"):
+        fetch_snapshot.fetch(snapshot(), tmp_path / "roads.npz", opener(response))
     assert list(tmp_path.iterdir()) == []

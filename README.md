@@ -5,8 +5,6 @@
 from two or more origins and shows every stored road vertex within 60 seconds
 of the optimum.
 
-[Built by AI agents](https://snowball-projects.github.io/licensing/#how-snowball-is-built)
-
 The current interface uses a static Chicago-area snapshot without traffic. Its
 points are neither venue recommendations nor assurances of a safe stopping
 place. See the [model](docs/model.md), [architecture](docs/architecture.md), and
@@ -47,24 +45,28 @@ region_coordinates = roads.coordinates(result.region)
 `result.region` is the complete qualifying vertex set;
 `region_excess_seconds` gives each vertex's distance above the optimum. The
 NetworkX backend exposes the same contracts, and compact analysis accepts
-`retain_distances=False` for lower-memory scoring. Exact semantics are in the
-[mathematical model](docs/model.md).
+`retain_distances=False` for lower-memory scoring. A maximum-only caller can
+also pass `objective="maximum"` to omit total-time scoring arrays. Exact
+semantics are in the [mathematical model](docs/model.md).
 
 ## Checks
 
 ```sh
 uv run --locked ruff check .
-uv run --locked python -m pytest
+uv run --locked ruff format --check .
+uv run --locked python -m pytest tests experiments
 uv run --locked python -m build
+uv run --locked python scripts/validate_snapshot.py
 ```
 
 Tests use synthetic fixtures and require no geographic data or external services.
+The browser experiment also requires Node.js 22 or newer.
 
 ## License
 
 modo is a snowball project licensed under the [Apache License 2.0](LICENSE).
 The road snapshot is separately licensed under the Open Database License, and
-the local Leaflet stylesheet remains BSD-2-Clause. See
+the local Leaflet assets remain BSD-2-Clause. See
 [data notes](data/README.md), [NOTICE](NOTICE),
 [contribution terms](CONTRIBUTING.md), and the
 [Leaflet license](src/modo/static/LEAFLET-LICENSE.txt).

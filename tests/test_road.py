@@ -18,10 +18,15 @@ def graph():
     graph.add_node("b", x=10, y=0)
     graph.add_node("x", x=2, y=1)
     graph.add_node("y", x=3, y=1)
-    graph.add_weighted_edges_from([
-        ("a", "x", 1), ("b", "x", 9),
-        ("a", "y", 5), ("b", "y", 6),
-    ], weight="travel_time")
+    graph.add_weighted_edges_from(
+        [
+            ("a", "x", 1),
+            ("b", "x", 9),
+            ("a", "y", 5),
+            ("b", "y", 6),
+        ],
+        weight="travel_time",
+    )
     return graph
 
 
@@ -35,7 +40,9 @@ def test_total_objective_and_direct_tolerance(graph):
     assert result.region == {"x"}
     assert dict(result.region_excess_seconds) == {"x": 0}
     assert optimize_vertices(graph, ["a", "b"], tolerance_seconds=1).region == {
-        "x", "y"}
+        "x",
+        "y",
+    }
 
 
 def test_maximum_objective_and_tolerance(graph):
@@ -47,12 +54,15 @@ def test_maximum_objective_and_tolerance(graph):
     assert dict(result.region_excess_seconds) == {"x": 3, "y": 0}
 
 
-@pytest.mark.parametrize("kwargs", [
-    {"origins": []},
-    {"origins": ["a"], "objective": "median"},
-    {"origins": ["a"], "tolerance_seconds": -1},
-    {"origins": ["a"], "tolerance_seconds": float("nan")},
-])
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"origins": []},
+        {"origins": ["a"], "objective": "median"},
+        {"origins": ["a"], "tolerance_seconds": -1},
+        {"origins": ["a"], "tolerance_seconds": float("nan")},
+    ],
+)
 def test_rejects_invalid_options(graph, kwargs):
     with pytest.raises(ValueError):
         optimize_vertices(graph, **kwargs)
@@ -139,9 +149,16 @@ def test_nearest_vertices_handles_the_dateline():
     assert nearest_vertices(graph, [(0, -179.9)]) == ("east",)
 
 
-@pytest.mark.parametrize("coordinates", [
-    [], [(91, 0)], [(0, 181)], [(1, 2, 3)], [(10**400, 0)],
-])
+@pytest.mark.parametrize(
+    "coordinates",
+    [
+        [],
+        [(91, 0)],
+        [(0, 181)],
+        [(1, 2, 3)],
+        [(10**400, 0)],
+    ],
+)
 def test_coordinate_optimizer_rejects_invalid_input(graph, coordinates):
     with pytest.raises(ValueError):
         optimize_coordinates(graph, coordinates)
@@ -160,6 +177,14 @@ def test_networkx_rejects_non_attribute_weight(graph):
 
 
 def test_road_api_is_public():
-    assert {"RoadResult", "RoadRoute", "RoadTravelTimes", "StaticRoadAnalysis",
-            "analyze_coordinates", "analyze_vertices", "nearest_vertices",
-            "optimize_coordinates", "optimize_vertices"} <= set(modo.__all__)
+    assert {
+        "RoadResult",
+        "RoadRoute",
+        "RoadTravelTimes",
+        "StaticRoadAnalysis",
+        "analyze_coordinates",
+        "analyze_vertices",
+        "nearest_vertices",
+        "optimize_coordinates",
+        "optimize_vertices",
+    } <= set(modo.__all__)

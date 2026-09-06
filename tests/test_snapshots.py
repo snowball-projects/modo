@@ -25,6 +25,7 @@ def test_loads_published_catalog():
     assert catalog[0].identifier == "chicago-static-v1"
     assert catalog[0].contains([(41.8781, -87.6298)])
     assert not catalog[0].contains([(42.18, -87.8)])
+    assert catalog[0].core_bounds == (41.868, -88.116, 42.162, -87.6253)
     assert catalog[0].sha256 == (
         "c095461796adda233387c66f5b32c433c0d8a76d184902daf848fed1a3f2d39c"
     )
@@ -70,11 +71,13 @@ def test_rejects_invalid_catalog(tmp_path, change):
         {"url": "https://example.test:invalid/roads.npz"},
         {"url": 42},
         {"file": ""},
+        {"file": ".."},
         {"id": "test\x00snapshot"},
         {"sha256": "g" * 64},
         {"core_bounds": [float("nan"), 0, 1, 1]},
         {"core_bounds": [10**400, 0, 1, 1]},
         {"graph_bounds": [-91, -1, 2, 2]},
+        {"graph_bounds": [0, 0, 1, 1]},
     ],
 )
 def test_rejects_unsafe_snapshot_metadata(tmp_path, changes):

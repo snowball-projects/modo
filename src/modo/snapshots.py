@@ -35,7 +35,13 @@ def load_catalog(path):
         if value["schema_version"] != 1 or not isinstance(value["snapshots"], list):
             raise ValueError
         snapshots = tuple(_snapshot(item) for item in value["snapshots"])
-    except (KeyError, OverflowError, TypeError, ValueError, json.JSONDecodeError) as error:
+    except (
+        KeyError,
+        OverflowError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+    ) as error:
         raise ValueError("invalid road snapshot catalog") from error
     if not snapshots or len({item.identifier for item in snapshots}) != len(snapshots):
         raise ValueError("invalid road snapshot catalog")
@@ -59,10 +65,11 @@ def _snapshot(value):
         or abs(graph_bounds[3]) > 180
         or bounds[0] > bounds[2]
         or bounds[1] > bounds[3]
-        or graph_bounds[0] > bounds[0]
-        or graph_bounds[1] > bounds[1]
-        or graph_bounds[2] < bounds[2]
-        or graph_bounds[3] < bounds[3]
+        or graph_bounds[0] >= bounds[0]
+        or graph_bounds[1] >= bounds[1]
+        or graph_bounds[2] <= bounds[2]
+        or graph_bounds[3] <= bounds[3]
+        or value["file"] in {".", ".."}
         or Path(value["file"]).name != value["file"]
         or _unsafe_text(value["file"])
         or _unsafe_text(value["id"])
@@ -88,6 +95,7 @@ def _unsafe_text(value):
     return (
         not isinstance(value, str)
         or not value
+        or value != value.strip()
         or any(ord(character) < 32 or ord(character) == 127 for character in value)
     )
 

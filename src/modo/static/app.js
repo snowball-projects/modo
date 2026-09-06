@@ -13,6 +13,8 @@ const state = {
   nextColor: 0,
   nextRowId: 0,
   request: null,
+  requestSignature: null,
+  resultSignature: null,
   layers: [],
   photonBbox: null,
   maxOrigins: 32,
@@ -21,6 +23,7 @@ const view = {
   addOrigin: document.querySelector("#add-origin"),
   origins: document.querySelector("#origins"),
   panel: document.querySelector(".panel"),
+  accessibleSummary: document.querySelector("#result-summary"),
   status: document.querySelector("#status"),
 };
 const map = L.map("map", {
@@ -117,7 +120,10 @@ function updateMarker(row) {
 function clearResult() {
   state.request?.abort();
   state.request = null;
+  state.requestSignature = null;
+  state.resultSignature = null;
   state.layers.splice(0).forEach((layer) => layer.remove());
+  view.accessibleSummary.textContent = "";
   state.rows.forEach((row) => {
     row.time.textContent = "";
   });
@@ -301,6 +307,7 @@ function addOrigin() {
     calculate();
   };
   row.input.oninput = () => {
+    const changedConfirmedOrigin = Boolean(row.coordinate);
     row.coordinate = null;
     row.snappedCoordinate = null;
     row.input.removeAttribute("title");
@@ -310,9 +317,11 @@ function addOrigin() {
     row.marker?.remove();
     row.marker = null;
     clearTimeout(row.timer);
-    clearResult();
+    if (changedConfirmedOrigin) {
+      clearResult();
+      setStatus("Confirm this origin to calculate.");
+    }
     row.timer = setTimeout(() => suggest(row), 300);
-    calculate();
   };
   row.input.onkeydown = (event) => {
     const options = [...row.suggestions.querySelectorAll('[role="option"]')];
@@ -421,18 +430,29 @@ function drawResult(result, activeRows) {
     map.stop();
     map.fitBounds(bounds.pad(0.12), fitOptions(14));
   }
+  const best = result.routes[0]?.at(-1);
+  view.accessibleSummary.textContent = best
+    ? `Best road location at ${formatCoordinate(best)}. The one-minute region contains ${result.region.length} stored road vertices.`
+    : `The one-minute region contains ${result.region.length} stored road vertices.`;
   setStatus("One-minute region ready.");
 }
 
+function originSignature(rows) {
+  return JSON.stringify(rows.map((row) => row.coordinate));
+}
+
 async function calculate() {
-  clearResult();
   const activeRows = state.rows.filter((row) => row.coordinate);
+  const signature = originSignature(activeRows);
+  if (signature === state.resultSignature || signature === state.requestSignature) return;
+  clearResult();
   if (activeRows.length < 2) {
     setStatus("Confirm at least two origins.");
     return;
   }
   const controller = new AbortController();
   state.request = controller;
+  state.requestSignature = signature;
   setStatus("Calculating the one-minute region…");
   try {
     const response = await fetch("/api/evaluations", {
@@ -443,14 +463,23 @@ async function calculate() {
     });
     const result = await responseBody(response);
     if (!response.ok) throw new Error(result.error);
-    if (state.request !== controller) return;
+    if (
+      state.request !== controller ||
+      originSignature(state.rows.filter((row) => row.coordinate)) !== signature
+    ) {
+      return;
+    }
     drawResult(result, activeRows);
+    state.resultSignature = signature;
   } catch (error) {
     if (error.name !== "AbortError" && state.request === controller) {
       setStatus(error.message || "modo could not calculate these origins.");
     }
   } finally {
-    if (state.request === controller) state.request = null;
+    if (state.request === controller) {
+      state.request = null;
+      state.requestSignature = null;
+    }
   }
 }
 

@@ -17,19 +17,24 @@ independent deployments set their own service policies.
 - Address text goes directly from the browser to the public Photon service.
   Photon receives the query, IP address, and ordinary request metadata.
   Manually entered coordinates do not go to Photon.
-- Leaflet JavaScript loads from unpkg and map tiles from OpenStreetMap. Both
-  receive IP and request metadata; tile requests reveal the viewed map area.
+- Map tiles load directly from OpenStreetMap, which receives IP and request
+  metadata; tile requests reveal the viewed map area. Leaflet is served by
+  modo itself.
 
 ## Current limits
 
 The interface accepts between two and 32 origins and at most 32 KiB of an
 `application/json` request. Coordinates must be inside the active snapshot's
-supported core and within 5 km of one of its road vertices. The initial
+supported core and within 1 km of one of its road vertices. The initial
 snapshot covers the Chicago area specified in `src/modo/snapshots.json`.
 
 The one-minute region is limited to 5,000 vertices and returned routes to
 100,000 vertices in total. modo rejects larger results rather than truncating
 them.
+
+Evaluation requests share a small process-wide rate budget. It stores no IP
+address, coordinate, or other requester identifier and returns `429` with a
+retry delay when the free service is busy.
 
 ## Acceptable use
 

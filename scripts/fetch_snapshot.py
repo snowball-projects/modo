@@ -5,12 +5,26 @@ from argparse import ArgumentParser
 from hashlib import sha256
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from urllib.request import urlopen
+from time import monotonic
+from urllib.error import HTTPError
+from urllib.parse import urljoin
+from urllib.request import HTTPRedirectHandler, build_opener
 
 from modo.snapshots import DEFAULT_CATALOG, is_https_url, load_catalog
 
 MAX_SNAPSHOT_BYTES = 512 * 1024 * 1024
 DOWNLOAD_TIMEOUT_SECONDS = 60
+DOWNLOAD_CHUNK_BYTES = 64 * 1024
+MAX_REDIRECTS = 5
+REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, file, code, message, headers, new_url):
+        return None
+
+
+_OPENER = build_opener(_NoRedirectHandler())
 
 
 def digest(path):
@@ -21,7 +35,37 @@ def digest(path):
     return result.hexdigest()
 
 
-def fetch(snapshot, destination, opener=urlopen):
+def _redirect_target(current_url, headers):
+    location = headers.get("Location") or headers.get("URI")
+    try:
+        target = urljoin(current_url, location)
+    except (TypeError, ValueError) as error:
+        raise RuntimeError("road snapshot redirect is invalid") from error
+    if not is_https_url(target):
+        raise RuntimeError("road snapshot redirected outside HTTPS")
+    return target
+
+
+def _open_snapshot(url, deadline, opener, clock):
+    for _redirect in range(MAX_REDIRECTS + 1):
+        remaining = deadline - clock()
+        if remaining <= 0:
+            raise RuntimeError("road snapshot download timed out")
+        try:
+            return opener(url, timeout=remaining)
+        except HTTPError as error:
+            try:
+                if error.code not in REDIRECT_CODES:
+                    raise RuntimeError(
+                        f"road snapshot download failed with status {error.code}"
+                    ) from error
+                url = _redirect_target(url, error.headers)
+            finally:
+                error.close()
+    raise RuntimeError("road snapshot has too many redirects")
+
+
+def fetch(snapshot, destination, opener=None, clock=monotonic):
     """Download one HTTPS snapshot atomically and verify its checksum."""
     if not is_https_url(snapshot.url):
         raise RuntimeError("road snapshot URL must use HTTPS without credentials")
@@ -31,8 +75,10 @@ def fetch(snapshot, destination, opener=urlopen):
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
+        deadline = clock() + DOWNLOAD_TIMEOUT_SECONDS
+        opener = _OPENER.open if opener is None else opener
         with (
-            opener(snapshot.url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response,
+            _open_snapshot(snapshot.url, deadline, opener, clock) as response,
             NamedTemporaryFile(dir=destination.parent, delete=False) as output,
         ):
             temporary = Path(output.name)
@@ -50,12 +96,22 @@ def fetch(snapshot, destination, opener=urlopen):
                     raise RuntimeError("road snapshot exceeds the download limit")
             result = sha256()
             received = 0
-            while chunk := response.read(1024 * 1024):
+            read = response.read1 if hasattr(response, "read1") else response.read
+            while True:
+                if clock() >= deadline:
+                    raise RuntimeError("road snapshot download timed out")
+                chunk = read(DOWNLOAD_CHUNK_BYTES)
+                if clock() > deadline:
+                    raise RuntimeError("road snapshot download timed out")
+                if not chunk:
+                    break
                 received += len(chunk)
                 if received > MAX_SNAPSHOT_BYTES:
                     raise RuntimeError("road snapshot exceeds the download limit")
                 result.update(chunk)
                 output.write(chunk)
+            if declared_length is not None and received != declared_length:
+                raise RuntimeError("road snapshot content length does not match")
         if result.hexdigest() != snapshot.sha256:
             raise RuntimeError("road snapshot checksum does not match")
         temporary.replace(destination)

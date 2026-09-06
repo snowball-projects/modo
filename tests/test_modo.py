@@ -11,8 +11,13 @@ def distance(a, b):
 
 def test_rejects_invalid_input():
     for coordinates in (
-            [], [(91, 0)], [(0, 181)], [(float("nan"), 0)], [(1, 2, 3)],
-            [(10**400, 0)]):
+        [],
+        [(91, 0)],
+        [(0, 181)],
+        [(float("nan"), 0)],
+        [(1, 2, 3)],
+        [(10**400, 0)],
+    ):
         with pytest.raises(ValueError):
             geographic_median(coordinates)
 
@@ -39,7 +44,9 @@ def test_is_independent_of_input_order():
 
 
 def test_handles_duplicates_and_dateline():
-    assert distance(geographic_median([(10, 179), (10, -179), (10, 179)]), (10, 179)) < 500
+    assert (
+        distance(geographic_median([(10, 179), (10, -179), (10, 179)]), (10, 179)) < 500
+    )
 
 
 def test_collinear_non_unique_result_is_optimal():
@@ -49,9 +56,17 @@ def test_collinear_non_unique_result_is_optimal():
     assert objective(result) - objective((0, 0)) < 1
 
 
-@pytest.mark.parametrize("coordinates", [
-    [], [(91, 0)], [(0, 181)], [(float("nan"), 0)], [(1, 2, 3)], [(10**400, 0)],
-])
+@pytest.mark.parametrize(
+    "coordinates",
+    [
+        [],
+        [(91, 0)],
+        [(0, 181)],
+        [(float("nan"), 0)],
+        [(1, 2, 3)],
+        [(10**400, 0)],
+    ],
+)
 def test_minimax_center_rejects_invalid_input(coordinates):
     with pytest.raises(ValueError):
         minimax_center(coordinates)
