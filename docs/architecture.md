@@ -52,6 +52,39 @@ plus 60 seconds is settled. Its label and heap budgets never truncate or
 approximate a result. A request that exceeds them fails instead of starting a
 full-graph fallback.
 
+The hosted budget is `ceil(0.025 * distinct_origins * graph_vertices)`, clamped
+to 10,000 through 50,000 discovered origin-vertex labels. Heap pushes are
+limited to four times that budget. The 10,000 minimum lets a downtown-to-Wrigley
+pair finish its complete region with 5,310 labels; the old 5,000 minimum rejected
+that ordinary group. The maximum and the algorithm are unchanged.
+
+### Budget measurements
+
+Run `uv run --locked python scripts/benchmark_web_budget.py` on Linux or macOS
+with the local Chicago snapshot. It makes no network requests. Each case and
+minimum runs three complete WSGI evaluations in a fresh process; regional grids
+use public synthetic coordinates snapped onto stored road vertices.
+
+On September 6, 2026, Python 3.12.2/macOS arm64 produced these medians:
+
+| Origins | Old/new budget | Old/new median (ms) | Old/new result |
+| --- | --- | --- | --- |
+| Downtown/Wrigley pair | 5,000 / 10,000 | 7.30 / 7.96 | Limit / 180 vertices |
+| Nearby pair | 5,000 / 10,000 | 1.76 / 1.71 | 149 / 149 vertices |
+| Six nearby | 9,512 / 10,000 | 3.06 / 3.44 | 152 / 152 vertices |
+| Eight nearby | 12,683 / 12,683 | 3.61 / 3.59 | 116 / 116 vertices |
+| 32 nearby | 50,000 / 50,000 | 46.78 / 44.39 | 211 / 211 vertices |
+| Eight regional | 12,683 / 12,683 | 17.35 / 17.56 | Limit / limit |
+| 32 regional | 50,000 / 50,000 | 78.55 / 77.55 | Limit / limit |
+| Opposite corners | 5,000 / 10,000 | 6.49 / 13.40 | Limit / limit |
+
+Peak process RSS, including imports and snapshot loading, stayed below 126 MiB
+in every case; the highest with the new minimum was 124.2 MiB. The slowest
+individual evaluation took 80.1 ms. These local measurements support the modest
+increase within the 512 MiB hosting plan; they do not measure Linux production
+latency, concurrent traffic, or Gunicorn master/host overhead. Retain one worker,
+the hard maximum, and explicit failures; remeasure before further increases.
+
 Compact snapshots retain vertex coordinates and weighted adjacency, not full
 OpenStreetMap edge geometry. Routes therefore show the chosen vertex sequence
 but may omit curves between vertices.

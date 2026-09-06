@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-09-06
+
+### Fixed
+
+- Raise the hosted exact-search minimum from 5,000 to 10,000 labels so ordinary
+  cross-city pairs can finish their complete one-minute region. The maximum
+  remains 50,000 labels; exactness and explicit limit failures are unchanged.
+- Add an offline budget benchmark and regression coverage for groups that
+  exceed the old minimum, with documented latency and memory measurements.
+
 ## [0.3.5] - 2026-09-06
 
 ### Security

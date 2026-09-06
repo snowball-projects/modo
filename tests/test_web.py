@@ -3,6 +3,7 @@ import json
 import logging
 from dataclasses import replace
 from hashlib import sha256
+from types import SimpleNamespace
 
 import networkx as nx
 import pytest
@@ -250,6 +251,42 @@ def test_sparse_budget_abort_fails_without_full_graph_search(monkeypatch):
     assert status == "422 Unprocessable Entity"
     assert b"exact-search limit" in body
     assert calls == []
+
+
+def test_hosted_region_can_finish_above_old_minimum_budget(monkeypatch):
+    graph = nx.DiGraph()
+    graph.add_node("a", y=41.88, x=-87.80)
+    graph.add_node("b", y=41.88, x=-87.70)
+    graph.add_node("sink", y=41.899, x=-87.75)
+    for vertex in range(3000):
+        graph.add_node(
+            vertex, y=41.89 + (vertex // 60) * 1e-5, x=-87.76 + (vertex % 60) * 1e-5
+        )
+        graph.add_edge("a", vertex, travel_time=10)
+        graph.add_edge("b", vertex, travel_time=10)
+        graph.add_edge(vertex, "sink", travel_time=1)
+    monkeypatch.setattr(web, "_graph", CompactRoadGraph.from_networkx(graph))
+    payload = {"origins": [[41.88, -87.80], [41.88, -87.70]]}
+
+    status, _headers, body = request("/api/evaluations", "POST", payload)
+    assert status == "200 OK"
+    result = json.loads(body)
+    assert result["objective_seconds"] == 10
+    assert result["travel_times_seconds"] == [10, 10]
+    assert len(result["region"]) == 3001
+    assert sum(point["excess_seconds"] == 0 for point in result["region"]) == 3000
+    assert sum(point["excess_seconds"] == 1 for point in result["region"]) == 1
+
+    monkeypatch.setattr(web, "MIN_SPARSE_LABELS", 5000)
+    status, _headers, body = request("/api/evaluations", "POST", payload)
+    assert status == "422 Unprocessable Entity"
+    assert b"exact-search limit" in body
+
+
+@pytest.mark.parametrize("origins,expected", [(2, 10000), (8, 12683), (32, 50000)])
+def test_hosted_label_budget_retains_snapshot_scaling_and_cap(origins, expected):
+    road = SimpleNamespace(_matrix=SimpleNamespace(shape=(63413, 63413)))
+    assert web._sparse_label_budget(road, origins) == expected
 
 
 def test_route_limit_counts_duplicate_response_routes(monkeypatch):

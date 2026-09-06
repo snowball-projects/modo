@@ -32,6 +32,11 @@ The one-minute region is limited to 5,000 vertices and returned routes to
 100,000 vertices in total. modo rejects larger results rather than truncating
 them.
 
+Exact search also has a work budget of 10,000 to 50,000 discovered
+origin-vertex labels, depending on the snapshot size and distinct snapped
+origins. Groups can exceed this budget even when their origins are inside
+coverage; modo then rejects the calculation without returning a partial region.
+
 Evaluation requests share a small process-wide rate budget. It stores no IP
 address, coordinate, or other requester identifier and returns `429` with a
 retry delay when the free service is busy.
