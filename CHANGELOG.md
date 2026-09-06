@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-09-06
+
+### Security
+
+- Build source distributions and wheels with setuptools 83.0.0, fixing the
+  macOS Unicode-normalization exclusion bypass in CVE-2026-59890
+  ([GHSA-h35f-9h28-mq5c](https://github.com/advisories/GHSA-h35f-9h28-mq5c)).
+
 ## [0.3.4] - 2026-09-06
 
 ### Added
