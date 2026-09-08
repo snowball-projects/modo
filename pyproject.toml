@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "modo"
-version = "0.3.6"
+version = "0.3.7"
 description = "Compute multi-origin road meeting regions."
 authors = [{name = "snowball"}]
-license = "Apache-2.0"
+license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 readme = "README.md"
 requires-python = ">=3.11"

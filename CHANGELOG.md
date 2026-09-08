@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-09-07
+
+### Changed
+
+- License snowball's original software under MIT and update package metadata,
+  contribution terms, and current documentation. Leaflet's BSD-2-Clause license
+  and OpenStreetMap's data terms remain separate; prior releases retain their
+  original licensing records.
+
 ## [0.3.6] - 2026-09-06
 
 ### Fixed

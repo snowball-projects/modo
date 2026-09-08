@@ -37,7 +37,7 @@
   explicit budget. A provider key does not establish data reuse rights.
 - Write `snowball` in lowercase. Credit software to snowball; Nas Delevski is
   its founder. Do not add AI-builder labels or change product direction by assumption.
-- Preserve Apache-2.0 software licensing and separate road-data/Leaflet notices;
+- Preserve MIT software licensing and separate road-data/Leaflet notices;
   `LICENSE`, `NOTICE`, and `CONTRIBUTING.md` are authoritative.
 - Use regular hyphens instead of em dashes. Keep public copy terse and honest.
 - Keep this file concise and current. Link to canonical documentation instead

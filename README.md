@@ -64,7 +64,7 @@ The browser experiment also requires Node.js 22 or newer.
 
 ## License
 
-modo is a snowball project licensed under the [Apache License 2.0](LICENSE).
+modo is a snowball project licensed under the [MIT License](LICENSE).
 The road snapshot is separately licensed under the Open Database License, and
 the local Leaflet assets remain BSD-2-Clause. See
 [data notes](data/README.md), [NOTICE](NOTICE),
