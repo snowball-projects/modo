@@ -38,11 +38,15 @@ summary:focus-visible {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
   color: #123b33;
   font: 700 2rem/1 Georgia, serif;
   letter-spacing: -.04em;
   text-decoration: none;
 }
+.brand img { display: block; flex: none; }
 header p { margin: .55rem 0 0; color: #587069; font-size: .9rem; line-height: 1.4; }
 
 .section-heading {

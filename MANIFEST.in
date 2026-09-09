@@ -1,5 +1,6 @@
 include AGENTS.md CLAUDE.md CHANGELOG.md CONTRIBUTING.md SERVICE.md render.yaml uv.lock .env.example
 recursive-include docs *.md
+include docs/icon.png
 include data/README.md
 recursive-include scripts *.py
 recursive-include experiments *.py *.js *.mjs *.html *.md *.json

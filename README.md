@@ -62,6 +62,21 @@ uv run --locked python scripts/validate_snapshot.py
 Tests use synthetic fixtures and require no geographic data or external services.
 The browser experiment also requires Node.js 22 or newer.
 
+## Icon
+
+[docs/icon.png](docs/icon.png) is the approved folded-map source. Keep that
+image when iterating; regenerate the two small browser assets after replacing
+it. On macOS, from the repository root:
+
+```sh
+sips -z 180 180 docs/icon.png --out src/modo/static/icon.png
+sips -z 32 32 docs/icon.png --out src/modo/static/favicon.png
+```
+
+The 180px image serves both the header and saved home-screen shortcut. The
+32px image is the favicon. Copy the full-resolution source to snowball's
+website project image when updating it there.
+
 ## License
 
 modo is a snowball project licensed under the [MIT License](LICENSE).

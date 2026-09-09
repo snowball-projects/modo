@@ -138,6 +138,16 @@ def test_serves_single_objective_interface():
     assert b"Leaflet 1.9.4" in body
 
 
+@pytest.mark.parametrize("path", ["/favicon.png", "/icon.png"])
+def test_serves_project_icons(path):
+    status, headers, body = request(path)
+    assert status == "200 OK"
+    assert headers["Content-Type"] == "image/png"
+    assert headers["Cache-Control"] == "no-cache"
+    assert body.startswith(b"\x89PNG\r\n\x1a\n")
+    assert int(headers["Content-Length"]) == len(body)
+
+
 def test_config_describes_fixed_region():
     status, _headers, body = request("/api/config")
     result = json.loads(body)
@@ -510,7 +520,9 @@ def test_unknown_and_unsupported_routes():
     assert headers["Allow"] == "GET, HEAD"
 
 
-@pytest.mark.parametrize("path", ["/", "/app.js", "/api/config", "/health"])
+@pytest.mark.parametrize(
+    "path", ["/", "/app.js", "/favicon.png", "/icon.png", "/api/config", "/health"]
+)
 def test_head_matches_get_headers_without_a_body(monkeypatch, path):
     monkeypatch.setattr(web, "_graph", road_graph())
     get_status, get_headers, get_body = request(path)
