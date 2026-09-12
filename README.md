@@ -85,3 +85,5 @@ the local Leaflet assets remain BSD-2-Clause. See
 [data notes](data/README.md), [NOTICE](NOTICE),
 [contribution terms](CONTRIBUTING.md), and the
 [Leaflet license](src/modo/static/LEAFLET-LICENSE.txt).
+
+[Operations](https://snowball-projects.github.io/operations/#modo)
